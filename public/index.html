@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>台股公告雷達</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0e1a;
+    --surface: #111827;
+    --surface2: #1a2234;
+    --border: #1e2d45;
+    --accent: #00d4aa;
+    --accent2: #3b82f6;
+    --danger: #ef4444;
+    --text: #e2e8f0;
+    --text2: #94a3b8;
+    --text3: #4a5568;
+    --mono: 'Space Mono', monospace;
+    --sans: 'Noto Sans TC', sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: var(--sans); min-height: 100vh; }
+  body::before {
+    content: ''; position: fixed; inset: 0;
+    background-image: linear-gradient(rgba(0,212,170,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(0,212,170,0.03) 1px, transparent 1px);
+    background-size: 40px 40px; pointer-events: none;
+  }
+  .header {
+    border-bottom: 1px solid var(--border); padding: 18px 32px;
+    display: flex; align-items: center; justify-content: space-between;
+    background: rgba(10,14,26,0.95); backdrop-filter: blur(10px);
+    position: sticky; top: 0; z-index: 100;
+  }
+  .logo { display: flex; align-items: center; gap: 15px; }
+  .logo-icon { width: 48px; height: 48px; background: var(--accent); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 24px; box-shadow: 0 4px 15px rgba(0,212,170,0.2); }
+  .logo-text { font-family: var(--mono); font-size: 20px; font-weight: 700; color: var(--accent); letter-spacing: 3px; line-height: 1.2; }
+  .logo-sub { font-size: 13px; color: var(--text2); opacity: 0.8; margin-top: 2px; }
+  .status-pill { display: flex; align-items: center; gap: 8px; padding: 6px 14px; border: 1px solid var(--border); border-radius: 20px; font-size: 12px; color: var(--text2); font-family: var(--mono); }
+  .status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+  .main { max-width: 900px; margin: 0 auto; padding: 40px 24px; display: flex; flex-direction: column; gap: 24px; }
+  .section-label { font-family: var(--mono); font-size: 13px; color: var(--accent); letter-spacing: 3px; text-transform: uppercase; margin-bottom: 12px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 22px; }
+  .card-title { font-size: 18px; font-weight: 700; margin-bottom: 22px; display: flex; align-items: center; gap: 8px; }
+  .stock-input-row { display: flex; gap: 10px; margin-bottom: 14px; align-items: flex-end; }
+  .input-group { flex: 1; display: flex; flex-direction: column; gap: 5px; }
+  .input-label { font-size: 13px; color: var(--text2); font-weight: 500; font-family: var(--mono); letter-spacing: 1px; }
+  input[type="text"], input[type="email"] { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px; color: var(--text); font-family: var(--mono); font-size: 15px; outline: none; transition: border-color 0.2s; }
+  input[type="text"]:focus, input[type="email"]:focus { border-color: var(--accent); }
+  .btn { padding: 9px 18px; border-radius: 8px; border: none; cursor: pointer; font-family: var(--mono); font-size: 12px; font-weight: 700; transition: all 0.15s; letter-spacing: 1px; white-space: nowrap; }
+  .btn-primary { background: var(--accent); color: #0a0e1a; }
+  .btn-primary:hover { background: #00f0c0; transform: translateY(-1px); }
+  .btn-ghost { background: transparent; color: var(--text2); border: 1px solid var(--border); }
+  .btn-ghost:hover { border-color: var(--danger); color: var(--danger); }
+  .btn-save { background: var(--accent); color: #0a0e1a; padding: 12px 32px; font-size: 13px; border-radius: 10px; border: none; cursor: pointer; font-family: var(--mono); font-weight: 700; letter-spacing: 2px; transition: all 0.15s; display: flex; align-items: center; justify-content: center; }
+  .btn-save:hover { background: #00f0c0; transform: translateY(-1px); box-shadow: 0 4px 20px rgba(0,212,170,0.3); }
+  
+  /* Grid Stock List */
+  .stock-list-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 10px; }
+  @media (max-width: 768px) { .stock-list-grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 480px) { .stock-list-grid { grid-template-columns: 1fr; } }
+  .stock-list-item { display: flex; align-items: center; justify-content: space-between; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; animation: itemIn 0.25s ease-out; min-width: 0; }
+  @keyframes itemIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+  .stock-info { display: flex; align-items: center; gap: 10px; overflow: hidden; }
+  .stock-code-pill { background: rgba(0, 212, 170, 0.1); color: var(--accent); padding: 2px 8px; border-radius: 4px; font-family: var(--mono); font-weight: 700; font-size: 13px; flex-shrink: 0; }
+  .stock-name-text { font-size: 13px; color: var(--text); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .stock-del-btn { background: none; border: none; color: var(--text3); cursor: pointer; padding: 4px; font-size: 16px; transition: all 0.15s; flex-shrink: 0; line-height: 1; }
+  .stock-del-btn:hover { color: var(--danger); }
+
+  .stock-chip { display: flex; align-items: center; gap: 7px; background: var(--surface2); border: 1px solid var(--border); border-radius: 20px; padding: 5px 10px 5px 12px; font-family: var(--mono); font-size: 12px; animation: chipIn 0.2s ease; }
+  @keyframes chipIn { from{opacity:0;transform:scale(0.85)} to{opacity:1;transform:scale(1)} }
+  .chip-code { color: var(--accent); font-weight: 700; }
+  .chip-name { color: var(--text2); }
+  .chip-del { background: none; border: none; color: var(--text3); cursor: pointer; font-size: 16px; line-height: 1; padding: 0 2px; transition: color 0.15s; }
+  .chip-del:hover { color: var(--danger); }
+  
+  .empty-hint { color: var(--text3); font-size: 12px; font-style: italic; }
+  .type-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(185px, 1fr)); gap: 8px; }
+  .type-item { display: flex; align-items: center; gap: 10px; padding: 11px 13px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; cursor: pointer; transition: all 0.15s; user-select: none; }
+  .type-item:hover { border-color: var(--accent2); }
+  .type-item.active { border-color: var(--accent); background: rgba(0,212,170,0.07); }
+  .type-check { width: 15px; height: 15px; border: 2px solid var(--border); border-radius: 4px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.15s; font-size: 10px; }
+  .type-item.active .type-check { background: var(--accent); border-color: var(--accent); color: #0a0e1a; }
+  .type-name { font-size: 13px; }
+  .type-code { font-family: var(--mono); font-size: 10px; color: var(--text3); margin-left: auto; }
+  .divider { height: 1px; background: var(--border); margin: 18px 0; }
+  .email-row { display: flex; gap: 10px; align-items: flex-end; }
+  .stats-row { display: flex; gap: 12px; }
+  .stat-box { flex: 1; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; text-align: center; }
+  .stat-num { font-family: var(--mono); font-size: 26px; font-weight: 700; color: var(--accent); }
+  .stat-label { font-size: 11px; color: var(--text3); margin-top: 4px; }
+  .history-list { display: flex; flex-direction: column; gap: 8px; }
+  .history-item { display: flex; align-items: center; gap: 12px; padding: 10px 14px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; }
+  .history-code { font-family: var(--mono); color: var(--accent); font-weight: 700; width: 50px; flex-shrink: 0; }
+  .history-type { font-size: 11px; padding: 2px 8px; background: rgba(59,130,246,0.12); border: 1px solid rgba(59,130,246,0.25); border-radius: 10px; color: var(--accent2); white-space: nowrap; flex-shrink: 0; }
+  .history-title { flex: 1; color: var(--text2); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .history-time { font-family: var(--mono); font-size: 10px; color: var(--text3); white-space: nowrap; }
+  .toast { position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%) translateY(80px); background: var(--accent); color: #0a0e1a; padding: 12px 24px; border-radius: 10px; font-family: var(--mono); font-size: 13px; font-weight: 700; transition: transform 0.3s ease; z-index: 999; box-shadow: 0 8px 30px rgba(0,212,170,0.4); }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+
+  /* Log Viewer Styles */
+  .log-viewer { background: #000; border: 1px solid var(--border); border-radius: 8px; padding: 12px; height: 250px; overflow-y: auto; font-family: var(--mono); font-size: 11px; line-height: 1.5; color: #4ade80; display: flex; flex-direction: column-reverse; }
+  .log-line { border-bottom: 1px solid rgba(255,255,255,0.05); padding: 2px 0; word-break: break-all; white-space: pre-wrap; }
+  .log-viewer::-webkit-scrollbar { width: 6px; }
+  .log-viewer::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
+
+  /* Modal Styles */
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(4px); display: none; align-items: center; justify-content: center; z-index: 1000; padding: 20px; }
+  .modal-overlay.active { display: flex; }
+  .modal-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; max-width: 550px; width: 100%; max-height: 90vh; overflow-y: auto; position: relative; box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
+  .modal-header { padding: 20px 24px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+  .modal-body { padding: 24px; line-height: 1.6; }
+  .guide-step { margin-bottom: 20px; }
+  .guide-step h4 { color: var(--accent); margin-bottom: 8px; font-size: 15px; }
+  .guide-step p { font-size: 13px; color: var(--text2); margin-bottom: 8px; }
+  .code-block { background: #000; padding: 12px; border-radius: 8px; font-family: var(--mono); font-size: 12px; color: #e2e8f0; border: 1px solid var(--border); margin: 8px 0; }
+  .close-btn { background: none; border: none; color: var(--text3); font-size: 24px; cursor: pointer; }
+  .close-btn:hover { color: var(--danger); }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">
+    <div class="logo-icon">📡</div>
+    <div>
+      <div class="logo-text">TWSTOCK RADAR</div>
+      <div style="display:flex; align-items:center; gap:10px">
+        <div class="logo-sub">台股公告監控系統</div>
+        <div style="font-family:var(--mono); font-size:10px; color:var(--text3); letter-spacing:1px; border-left:1px solid var(--border); padding-left:10px; margin-top:2px">Created by CTH</div>
+      </div>
+    </div>
+  </div>
+  <div class="status-pill">
+    <div class="status-dot"></div>
+    <span id="statusText">設定介面</span>
+  </div>
+</div>
+
+<div class="main">
+
+  <div class="stats-row">
+    <div class="stat-box"><div class="stat-num" id="statStocks">0</div><div class="stat-label">監控股票</div></div>
+    <div class="stat-box"><div class="stat-num" id="statTypes">0</div><div class="stat-label">公告類型</div></div>
+    <div class="stat-box"><div class="stat-num" id="statAlerts">0</div><div class="stat-label">今日通知</div></div>
+    <div class="stat-box"><div class="stat-num" id="statTotal">0</div><div class="stat-label">累計通知</div></div>
+  </div>
+
+  <div>
+    <div class="section-label">01 / 監控清單</div>
+    <div class="card">
+      <div class="card-title">📋 正在監控中的股票列表</div>
+      <div class="stock-input-row">
+        <div class="input-group">
+          <div class="input-label">股票代號</div>
+          <input type="text" id="stockCode" placeholder="例：2330" maxlength="6" onblur="handleCodeBlur()">
+        </div>
+        <button class="btn btn-primary" id="addBtn" onclick="addStock()">＋ 新增監控</button>
+      </div>
+      <div id="loadingName" style="font-size:11px; color:var(--accent); margin-bottom:10px; display:none;">🔍 正在查詢公司名稱...</div>
+      <div style="font-size: 12px; color: var(--danger); margin-bottom: 14px; opacity: 0.8; font-weight: 500;">
+        💡 提示：新增或刪除股票後，請務必點擊下方的「儲存設定」按鈕才會正式生效。
+      </div>
+      <div class="stock-list-grid" id="stockList"><span class="empty-hint">尚未新增任何股票</span></div>
+    </div>
+  </div>
+
+  <div>
+    <div class="section-label">02 / 公告類型</div>
+    <div class="card">
+      <div class="card-title">📢 選擇監控的公告類型</div>
+      <div class="type-grid" id="typeGrid"></div>
+    </div>
+  </div>
+
+  <div>
+    <div class="section-label">03 / 通知設定</div>
+    <div class="card">
+      <div class="card-title">
+        ✉️ Email 通知設定
+        <button class="btn btn-ghost" onclick="toggleGuide()" style="margin-left:auto; padding: 4px 10px; font-size: 11px;">📖 設定教學</button>
+      </div>
+      <div class="email-row">
+        <div class="input-group">
+          <div class="input-label">收件 Email (可留空)</div>
+          <input type="email" id="emailInput" placeholder="your@email.com">
+        </div>
+        <button class="btn btn-ghost" onclick="testEmail()">測試寄信</button>
+      </div>
+      
+      <div class="divider"></div>
+      
+      <div class="card-title" style="margin-top: 10px;">🕒 查詢回溯範圍</div>
+      <div class="email-row">
+        <div class="input-group">
+          <div class="input-label" style="font-size: 14px; color: var(--text2); margin-bottom: 8px;">這是檢查幾天內的公告 (預設 1 天)：</div>
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <input type="text" id="checkDaysInput" value="1" style="width: 100px; text-align: center; font-size: 18px; font-weight: bold; color: var(--accent); border-color: var(--accent2);">
+            <span style="font-size: 16px; color: var(--text); font-weight: 500;">天內之公告</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <div class="section-label">04 / 排程時間</div>
+    <div class="card">
+      <div class="card-title">🕐 自動檢查時間點</div>
+      <div class="stock-input-row">
+        <div class="input-group">
+          <div class="input-label">時間（HH:MM）</div>
+          <input type="text" id="scheduleInput" placeholder="例：09:00" maxlength="5" style="width:120px">
+        </div>
+        <button class="btn btn-primary" onclick="addSchedule()">＋ 新增</button>
+      </div>
+      <div class="stock-list" id="scheduleList"><span class="empty-hint">尚未設定排程時間</span></div>
+    </div>
+  <!-- 操作 -->
+  <div style="display:flex; gap:12px; margin-top:10px">
+    <button class="btn-save" onclick="saveConfig()" style="flex: 2; height: 50px;">💾 &nbsp; 儲存設定</button>
+    <button class="btn-save" id="runBtn" onclick="runNow()" style="flex: 1; height: 50px; background:var(--surface2); color:var(--accent); border:1px solid var(--accent)">▶ 立即檢查</button>
+  </div>
+
+  <!-- 05 通知歷史 -->
+  <div>
+    <div class="section-label">05 / 通知歷史</div>
+    <div class="card">
+      <div class="card-title">
+        🕐 最近通知記錄
+        <button class="btn btn-ghost" onclick="clearHistory()" style="margin-left:auto; padding: 4px 10px; font-size: 11px;">🧹 清除紀錄</button>
+      </div>
+      <div class="history-list" id="historyList"><div class="empty-hint" style="padding:8px 0">尚無通知記錄</div></div>
+    </div>
+  </div>
+
+  <!-- 06 系統日誌 -->
+  <div>
+    <div class="section-label">06 / 系統日誌</div>
+    <div class="card">
+      <div class="card-title">💻 終端機 Log</div>
+      <div class="log-viewer" id="logViewer"><div class="log-line">系統載入中...</div></div>
+    </div>
+  </div>
+
+</div>
+
+<div class="modal-overlay" id="guideModal" onclick="if(event.target===this) toggleGuide()">
+  <div class="modal-card">
+    <div class="modal-header">
+      <h3 style="font-size: 18px;">📖 如何設定自動 Email 通知</h3>
+      <button class="close-btn" onclick="toggleGuide()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="guide-step">
+        <h4>1. 註冊 Resend 帳號</h4>
+        <p>前往 <a href="https://resend.com" target="_blank" style="color:var(--accent2)">resend.com</a> 並註冊一個免費帳號。</p>
+      </div>
+      <div class="guide-step">
+        <h4>2. 取得 API Key</h4>
+        <p>登入後點擊左側 <strong>"API Keys"</strong> -> <strong>"Create API Key"</strong>，複製產生的 <code>re_</code> 開頭代碼。</p>
+      </div>
+      <div class="guide-step">
+        <h4>3. 設定環境變數 (.env)</h4>
+        <p>在專案目錄下將 <code>.env.example</code> 改名為 <code>.env</code>，並填入：</p>
+        <div class="code-block">RESEND_API_KEY=貼上你的金鑰<br>EMAIL_FROM=註冊Resend的Email</div>
+      </div>
+      <div style="background: rgba(239, 68, 68, 0.1); padding: 12px; border-radius: 8px; border-left: 3px solid var(--danger); font-size: 12px; color: var(--text2);">⚠️ <strong>重要：</strong>Resend 免費版在驗證網域前，收件人必須與註冊帳號相同。設定完成後請重啟程式。</div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+let stocks    = [];
+let types     = [];
+let history   = [];
+let schedules = [];
+let logs      = [];
+let currentStockName = '';
+
+async function loadConfig() {
+  try {
+    const res = await fetch('/api/config');
+    const data = await res.json();
+    stocks    = data.stocks    || [];
+    types     = data.types     || [];
+    schedules = data.schedules || [];
+    document.getElementById('emailInput').value = data.email || '';
+    document.getElementById('checkDaysInput').value = data.checkDays || '1';
+    renderStocks();
+    renderTypes();
+    renderSchedules();
+    updateStats();
+  } catch(e) { showToast('⚠️ 載入設定失敗'); }
+}
+
+async function saveConfig() {
+  const email = document.getElementById('emailInput').value.trim();
+  const checkDays = parseInt(document.getElementById('checkDaysInput').value.trim()) || 1;
+  if (!stocks.length)  { showToast('⚠️ 請至少新增一支股票'); return; }
+  if (!types.filter(t => t.enabled).length) { showToast('⚠️ 請至少選擇一種公告類型'); return; }
+  try {
+    await fetch('/api/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, checkDays, stocks, types, schedules }),
+    });
+    updateStats();
+    showToast('✅ 設定已儲存！');
+  } catch(e) { showToast('⚠️ 儲存失敗'); }
+}
+
+async function testEmail() {
+  const email = document.getElementById('emailInput').value.trim();
+  if (!email) { showToast('請先填寫 Email'); return; }
+  try {
+    const res  = await fetch('/api/test-email', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email }) });
+    const data = await res.json();
+    if (data.ok) showToast('📧 測試信已寄出，請檢查信箱');
+    else showToast('⚠️ 寄信失敗：' + data.error);
+  } catch(e) { showToast('⚠️ 寄信失敗'); }
+}
+
+async function runNow() {
+  const btn = document.getElementById('runBtn');
+  btn.disabled = true;
+  const orig = btn.textContent;
+  btn.textContent = '檢查中...';
+  try {
+    const res  = await fetch('/api/run-now', { method: 'POST' });
+    const data = await res.json();
+    if (data.skipped) showToast('⚠️ 上次檢查尚未完成');
+    else { showToast(`✅ 完成：${data.newAnnouncements} 筆新公告`); await loadHistory(); }
+  } catch(e) { showToast('⚠️ 執行失敗'); }
+  finally { btn.disabled = false; btn.textContent = orig; }
+}
+
+async function loadHistory() {
+  try {
+    const res = await fetch('/api/history');
+    history = await res.json();
+    renderHistory();
+    updateStats();
+  } catch(e) {}
+}
+
+async function clearHistory() {
+  if (!confirm('確定要清除所有通知紀錄嗎？這將清空資料庫中的歷史資料。')) return;
+  try {
+    const res = await fetch('/api/history', { method: 'DELETE' });
+    const data = await res.json();
+    if (data.ok) {
+      showToast('🧹 已清空歷史紀錄');
+      await loadHistory();
+    }
+  } catch(e) { showToast('⚠️ 清除失敗'); }
+}
+
+async function fetchLogs() {
+  try {
+    const res = await fetch('/api/logs');
+    const newLogs = await res.json();
+    if (JSON.stringify(newLogs) !== JSON.stringify(logs)) { logs = newLogs; renderLogs(); }
+  } catch(e) {}
+}
+
+function renderLogs() {
+  const el = document.getElementById('logViewer');
+  const displayLogs = [...logs].reverse();
+  el.innerHTML = displayLogs.map(log => `<div class="log-line">${log}</div>`).join('');
+}
+
+function toggleGuide() { document.getElementById('guideModal').classList.toggle('active'); }
+
+async function fetchName(code) {
+  if (!code || code.length < 4) return '';
+  const loading = document.getElementById('loadingName');
+  const addBtn = document.getElementById('addBtn');
+  loading.style.display = 'block';
+  addBtn.disabled = true;
+  try {
+    const res = await fetch(`/api/stock-name/${code}`);
+    const data = await res.json();
+    currentStockName = data.name || '';
+    if (currentStockName === code) showToast(`⚠️ 找不到代號 ${code} 的名稱`);
+    else loading.textContent = `✅ 找到：${currentStockName}`;
+  } catch(e) { showToast('⚠️ 查詢名稱失敗'); currentStockName = ''; }
+  finally { addBtn.disabled = false; setTimeout(() => { loading.style.display = 'none'; loading.textContent = '🔍 正在查詢公司名稱...'; }, 2000); }
+}
+
+async function handleCodeBlur() {
+  const code = document.getElementById('stockCode').value.trim().toUpperCase();
+  if (code && code.length >= 4) await fetchName(code);
+}
+
+async function addStock() {
+  const codeInput = document.getElementById('stockCode');
+  const code = codeInput.value.trim().toUpperCase();
+  if (!code) { showToast('請輸入股票代號'); return; }
+  if (stocks.find(s => s.code === code)) { showToast(`${code} 已在清單中`); return; }
+  if (!currentStockName) await fetchName(code);
+  stocks.push({ code, name: currentStockName || '' });
+  codeInput.value = ''; currentStockName = ''; renderStocks(); updateStats();
+}
+
+function removeStock(code) { stocks = stocks.filter(s => s.code !== code); renderStocks(); updateStats(); }
+
+function renderStocks() {
+  const el = document.getElementById('stockList');
+  if (!stocks.length) { el.innerHTML = '<span class="empty-hint">尚未新增任何股票</span>'; return; }
+  el.innerHTML = stocks.map(s => `
+    <div class="stock-list-item">
+      <div class="stock-info">
+        <span class="stock-code-pill">${s.code}</span>
+        <span class="stock-name-text" title="${s.name || '搜尋中...'}">${s.name || '搜尋中...'}</span>
+      </div>
+      <button class="stock-del-btn" onclick="removeStock('${s.code}')" title="刪除">×</button>
+    </div>
+  `).join('');
+}
+
+function renderTypes() {
+  document.getElementById('typeGrid').innerHTML = types.map(t => `
+    <div class="type-item ${t.enabled ? 'active' : ''}" onclick="toggleType('${t.id}')">
+      <div class="type-check">${t.enabled ? '✓' : ''}</div>
+      <span class="type-name">${t.label}</span>
+      <span class="type-code">${t.id}</span>
+    </div>
+  `).join('');
+}
+
+function addSchedule() {
+  const val = document.getElementById('scheduleInput').value.trim();
+  if (!/^\d{2}:\d{2}$/.test(val)) { showToast('格式錯誤，請輸入 HH:MM，例如 09:00'); return; }
+  if (schedules.includes(val)) { showToast(`${val} 已在清單中`); return; }
+  schedules.push(val); schedules.sort(); document.getElementById('scheduleInput').value = ''; renderSchedules();
+}
+
+function removeSchedule(time) { schedules = schedules.filter(s => s !== time); renderSchedules(); }
+
+function renderSchedules() {
+  const el = document.getElementById('scheduleList');
+  if (!schedules.length) { el.innerHTML = '<span class="empty-hint">尚未設定排程時間</span>'; return; }
+  el.innerHTML = schedules.map(t => `
+    <div class="stock-chip">
+      <span class="chip-code">${t}</span>
+      <button class="chip-del" onclick="removeSchedule('${t}')">×</button>
+    </div>
+  `).join('');
+}
+
+function toggleType(id) {
+  const t = types.find(x => x.id === id);
+  if (t) { t.enabled = t.enabled ? 0 : 1; renderTypes(); updateStats(); }
+}
+
+function renderHistory() {
+  const el = document.getElementById('historyList');
+  if (!history.length) { el.innerHTML = '<div class="empty-hint" style="padding:8px 0">尚無通知記錄</div>'; return; }
+  el.innerHTML = history.slice(0, 15).map(h => {
+    const timeStr = h.notified_at ? h.notified_at.slice(5, 16) : '';
+    const title   = h.link ? `<a href="${h.link}" target="_blank" style="color:var(--text2);text-decoration:none">${h.title}</a>` : h.title;
+    
+    let typeLabels = '';
+    try {
+      // 支援舊資料(字串)與新資料(JSON陣列)
+      let typeArr = [];
+      if (h.type && h.type.startsWith('[')) {
+        typeArr = JSON.parse(h.type);
+      } else {
+        typeArr = [h.type || 'major'];
+      }
+
+      typeLabels = typeArr.map(tId => {
+        const typeObj = types.find(tx => tx.id === tId) || { label: tId };
+        // 分類配色
+        let badgeStyle = '';
+        if (tId === 'dividend')  badgeStyle = 'background:rgba(0,212,170,0.15); color:var(--accent); border-color:var(--accent)';
+        if (tId === 'financial') badgeStyle = 'background:rgba(59,130,246,0.15); color:var(--accent2); border-color:var(--accent2)';
+        if (tId === 'meeting')   badgeStyle = 'background:rgba(168,85,247,0.15); color:#a855f7; border-color:#a855f7';
+        
+        return `<span class="history-type" style="margin-right:4px; ${badgeStyle}">${typeObj.label}</span>`;
+      }).join('');
+    } catch(e) {
+      typeLabels = `<span class="history-type">${h.type || '-'}</span>`;
+    }
+
+    return `<div class="history-item" style="flex-wrap:wrap">
+      <span class="history-code">${h.stock_code}</span>
+      <div style="display:flex; flex-wrap:wrap; gap:4px; margin-right:8px">${typeLabels}</div>
+      <span class="history-title" style="flex-basis:100%; margin-top:5px; order:10">${title}</span>
+      <span class="history-time" style="margin-left:auto">${timeStr}</span>
+    </div>`;
+  }).join('');
+}
+
+function updateStats() {
+  document.getElementById('statStocks').textContent = stocks.length;
+  document.getElementById('statTypes').textContent  = types.filter(t => t.enabled).length;
+  const todayPrefix = new Date().toISOString().slice(0, 10);
+  document.getElementById('statAlerts').textContent = history.filter(h => (h.notified_at || '').startsWith(todayPrefix)).length;
+  document.getElementById('statTotal').textContent  = history.length;
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  loadConfig(); loadHistory(); fetchLogs(); setInterval(fetchLogs, 3000);
+  document.getElementById('stockCode').addEventListener('keydown', e => { if (e.key === 'Enter') addStock(); });
+  document.getElementById('scheduleInput').addEventListener('keydown', e => { if (e.key === 'Enter') addSchedule(); });
+});
+</script>
+</body>
+</html>

@@ -140,9 +140,16 @@ async function _fetchAnnouncementsInternal(stockCode, fromDate, toDate) {
   const filterFromRoc = toRocDate(fromDate);
   const filterToRoc = toRocDate(toDate);
   
-  const monthsToQuery = new Set();
-  monthsToQuery.add(fromDate.getMonth() + 1);
-  monthsToQuery.add(toDate.getMonth() + 1);
+  // 建立 (rocYear, month) pair 集合，支援跨年查詢
+  const pairsToQuery = new Map();
+  const addPair = (date) => {
+    const rocYear = date.getFullYear() - 1911;
+    const month = date.getMonth() + 1;
+    const key = `${rocYear}/${month}`;
+    if (!pairsToQuery.has(key)) pairsToQuery.set(key, { rocYear, month });
+  };
+  addPair(fromDate);
+  addPair(toDate);
 
   const allResults = [];
   let page = null;
@@ -153,14 +160,13 @@ async function _fetchAnnouncementsInternal(stockCode, fromDate, toDate) {
     await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36');
     await page.setViewport({ width: 1440, height: 900 });
 
-    for (const month of monthsToQuery) {
-      console.log(`[crawler] 正在查詢 ${stockCode} 的第 ${month} 月份公告...`);
+    for (const { rocYear, month } of pairsToQuery.values()) {
+      console.log(`[crawler] 正在查詢 ${stockCode} 民國 ${rocYear} 年第 ${month} 月份公告...`);
       await page.goto(MOPS_HISTORY_URL, { waitUntil: 'networkidle2', timeout: 30000 });
 
       await page.waitForSelector('#co_id');
       await page.type('#co_id', stockCode);
-      
-      const rocYear = (month <= 2 && (new Date()).getMonth() >= 10) ? (new Date()).getFullYear() - 1910 : (new Date()).getFullYear() - 1911;
+
       await page.click('#year', { clickCount: 3 });
       await page.keyboard.press('Backspace');
       await page.type('#year', String(rocYear));

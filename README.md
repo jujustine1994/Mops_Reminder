@@ -1,5 +1,6 @@
 # 台股公告雷達 (TWSTOCK RADAR)
 
+規則檔: nodejs-app.md
 類型: Node.js App
 
 📡 **監控台灣公開資訊觀測站（MOPS）公告，並自動寄送 Email 通知。**
@@ -57,3 +58,12 @@
 - `data/`: SQLite 資料庫存放區
 - `台股公告監控雷達.bat`: Windows 一鍵啟動腳本
 - `.env`: 環境變數設定 (API Key 等)
+
+## 🚀 Release 流程
+確認目前版本穩定後，將專案資料夾打包複製一份到 Release 資料夾（例如：`Mops_Radar_Release_v1.2.5/`）作為穩定版封存。開發中的修改在主資料夾進行，不影響 Release 版本。
+
+**複製時排除以下項目：**
+- `node_modules/` — 使用者首次執行時自動安裝
+- `data/` — 各自的資料庫，不隨版本發布
+- `.env` — 含 API Key 等機密，不能公開
+- `*.db` — 資料庫檔案

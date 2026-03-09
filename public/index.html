@@ -327,6 +327,19 @@ async function testEmail() {
 }
 
 async function runNow() {
+  if (!confirm('💡 按下「立即檢查」將會先清除目前的通知紀錄（等同於下方的清除紀錄按鈕），以確保抓取到最新的完整公告，確定要開始嗎？')) return;
+
+  // 1. 先清除歷史紀錄
+  try {
+    await fetch('/api/history', { method: 'DELETE' });
+    // 立即清空前端資料並更新畫面
+    history = [];
+    renderHistory();
+    updateStats();
+    showToast('🧹 已自動清除舊紀錄');
+  } catch(e) { console.error('清除歷史紀錄失敗', e); }
+
+  // 2. 開始立即檢查
   const btn = document.getElementById('runBtn');
   btn.disabled = true;
   const orig = btn.textContent;
@@ -491,7 +504,7 @@ function renderHistory() {
     }
 
     return `<div class="history-item" style="flex-wrap:wrap">
-      <span class="history-code">${h.stock_code}</span>
+      <span class="history-code">${h.stock_code}</span>${h.stock_name ? `<span style="color:var(--text2); font-size:12px; margin-right:8px; flex-shrink:0">${h.stock_name}</span>` : ''}
       <div style="display:flex; flex-wrap:wrap; gap:4px; margin-right:8px">${typeLabels}</div>
       <span class="history-title" style="flex-basis:100%; margin-top:5px; order:10">${title}</span>
       <span class="history-time" style="margin-left:auto">${timeStr}</span>

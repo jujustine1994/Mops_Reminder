@@ -53,14 +53,23 @@ if %errorlevel% neq 0 (
     node -v >nul 2>&1
     if !errorlevel! neq 0 (
         echo.
-        echo [INFO] 安裝完成，但需要重新開啟視窗才能生效。
-        echo        請關閉此視窗後重新執行本程式。
+        echo [INFO] 安裝完成！
+        echo.
+        echo   請關閉此視窗，然後再次點兩下「台股公告監控雷達.bat」重新啟動。
         pause
         exit /b 0
     )
     echo [OK] Node.js 安裝完成。
 ) else (
     for /f "tokens=*" %%v in ('node -v') do echo [OK] Node.js %%v 已安裝。
+)
+
+:: ============================================================
+:: [1.5] 建立 .env 設定檔（若尚未存在）
+:: ============================================================
+if not exist .env (
+    copy .env.example .env >nul
+    echo [OK] 已自動建立 .env 設定檔。
 )
 
 :: ============================================================
@@ -105,30 +114,29 @@ for %%p in ("!P0!" "!P1!" "!P2!") do (
     )
 )
 
-:: 都找不到 → 警告 + 詢問安裝
+:: 都找不到 → 先問是否已安裝
 echo [WARNING] 找不到 Google Chrome。
 echo.
-echo   !! 注意 !!
-echo   本程式使用 Chrome 爬取 MOPS 公告資料。
-echo   沒有安裝 Chrome，公告爬取功能將完全無法運作。
+set /p HAS_CHROME=您的電腦上是否已有安裝 Google Chrome？[Y/n]：
+if "!HAS_CHROME!"=="" set HAS_CHROME=Y
+if /i "!HAS_CHROME!" equ "Y" (
+    echo.
+    echo   Chrome 可能安裝在非標準位置，請在接下來的視窗中手動選擇 chrome.exe。
+    echo.
+    pause
+    goto chrome_pick
+)
+
+:: 沒有安裝 → 詢問是否要安裝
 echo.
 set /p INSTALL_CHROME=是否要立即安裝 Google Chrome？[Y/n]（直接按 Enter 代表同意）：
 if "!INSTALL_CHROME!"=="" set INSTALL_CHROME=Y
 if /i "!INSTALL_CHROME!" neq "Y" (
-    :: 使用者拒絕安裝 → 讓他手動選路徑（或許他有裝在奇怪地方）
     echo.
-    echo   如果您已安裝 Chrome 但未被偵測到，可以手動指定路徑。
-    echo   否則請先安裝 Google Chrome 後重新啟動本程式。
-    echo.
-    set /p PICK_CHROME=是否要手動選擇 chrome.exe 路徑？[Y/n]：
-    if "!PICK_CHROME!"=="" set PICK_CHROME=Y
-    if /i "!PICK_CHROME!" neq "Y" (
-        echo.
-        echo [ERROR] 沒有 Chrome，公告爬取功能無法使用。請安裝後重新啟動。
-        pause
-        exit /b 1
-    )
-    goto chrome_pick
+    echo [ERROR] 沒有 Chrome，公告爬取功能無法使用。
+    echo         請安裝 Google Chrome 後重新啟動本程式。
+    pause
+    exit /b 1
 )
 
 :: 安裝 Chrome
@@ -203,9 +211,9 @@ echo [INFO] Chrome 路徑已儲存至 .env，下次啟動不需重新選擇。
 :: ============================================================
 echo.
 echo [3/4] 檢查 Port 7853 是否可用...
-netstat -ano | findstr :7853 >nul 2>&1
+netstat -ano | findstr ":7853 " | findstr "LISTENING" >nul 2>&1
 if %errorlevel% equ 0 (
-    echo [WARNING] Port 7853 已被佔用，請關閉使用該 Port 的程式後重試。
+    echo [WARNING] Port 7853 已被其他程式佔用，請關閉後重試。
     pause
     exit /b 1
 )

@@ -7,11 +7,7 @@ cls
 
 cd /d "%~dp0"
 
-echo ========================================================
-echo   TWSTOCK RADAR - Taiwan Stock Monitor System
-echo   監控台灣 MOPS 公開資訊觀測站公告，自動寄送 Email 通知
-echo   Created by CTH
-echo ========================================================
+echo [INFO] Starting TWSTOCK RADAR...
 echo.
 
 :: ============================================================

@@ -173,8 +173,30 @@ app.post('/api/test-email', async (req, res) => {
 
 const { closeBrowser } = require('./crawler');
 
+function showCTHBanner() {
+    const b = '\x1b[90m';   // 邊框：深灰
+    const c = '\x1b[96m';   // CTH 字母：亮青
+    const y = '\x1b[93m';   // 署名：金黃
+    const r = '\x1b[0m';    // reset
+
+    console.log(
+        `${b}/*  ================================  *\\${r}\n` +
+        `${b} *                                    *${r}\n` +
+        `${b} *    ${c}██████╗████████╗██╗  ██╗${b}        *${r}\n` +
+        `${b} *   ${c}██╔════╝   ██║   ██║  ██║${b}        *${r}\n` +
+        `${b} *   ${c}██║        ██║   ███████║${b}        *${r}\n` +
+        `${b} *   ${c}██║        ██║   ██╔══██║${b}        *${r}\n` +
+        `${b} *   ${c}╚██████╗   ██║   ██║  ██║${b}        *${r}\n` +
+        `${b} *    ${c}╚═════╝   ╚═╝   ╚═╝  ╚═╝${b}        *${r}\n` +
+        `${b} *                                    *${r}\n` +
+        `${b} *          ${y}created by CTH${b}            *${r}\n` +
+        `${b}\\*  ================================  */${r}`
+    );
+}
+
 const PORT = process.env.PORT || 7853;
 app.listen(PORT, () => {
+  showCTHBanner();
   const url = `http://localhost:${PORT}`;
   console.log(`台股公告雷達 啟動於 ${url}`);
   

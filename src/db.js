@@ -50,6 +50,7 @@ const defaultTypes = [
   { id: 'financial', label: '財務報告' },
   { id: 'dividend', label: '股利公告' },
   { id: 'meeting', label: '重要會議' },
+  { id: 'earnings', label: '法說會' },
   { id: 'capital_change', label: '股本變動' },
   { id: 'merger', label: '合併/收購' },
   { id: 'board', label: '董監事異動' },

@@ -1,11 +1,19 @@
+// 排程模組：管理定時掃描 cron jobs，並執行完整的公告掃描流程
 const cron = require('node-cron');
 const { getStocks, getTypes, getConfig, isNotified, addHistory, getSchedules } = require('./db');
 const { fetchAnnouncements } = require('./crawler');
 const { sendNotification } = require('./mailer');
 
-let isRunning = false;
-let activeTasks = [];
+let isRunning = false;   // 防止同時多個掃描重疊執行
+let activeTasks = [];    // 目前存活的 cron job 清單，用於重設排程時先清除舊的
 
+/**
+ * 執行一次完整公告掃描：
+ * 1. 從 DB 取得監控股票、啟用類型、Email 設定
+ * 2. 對每支股票呼叫爬蟲，抓取指定日期範圍的公告
+ * 3. 過濾已通知過的公告（防重複），符合類型才加入待發清單
+ * 4. 有新公告時寄 Email，並寫入歷史記錄；無論寄信成否，記錄都會保留
+ */
 async function runCheck() {
   if (isRunning) {
     console.log('[scheduler] 上次檢查尚未完成，跳過本次');
@@ -77,6 +85,10 @@ async function runCheck() {
   }
 }
 
+/**
+ * 依傳入的時間陣列（如 ["09:00","13:30"]）重設所有 cron jobs
+ * 每次儲存設定時呼叫，立即生效，不需重啟 server
+ */
 function applySchedules(times) {
   // 清除舊的 cron jobs
   activeTasks.forEach(t => t.stop());
@@ -99,6 +111,7 @@ function applySchedules(times) {
   console.log(`[scheduler] 排程已套用：${times.join(', ')}`);
 }
 
+// server 啟動時呼叫，從 DB 讀取排程設定並啟動 cron jobs
 function startScheduler() {
   const times = getSchedules();
   applySchedules(times);

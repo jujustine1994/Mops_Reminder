@@ -74,8 +74,13 @@ function classifyType(title) {
   if (isFinancial) tags.push('financial');
 
   // 2. 重要會議 (含董事會決議)
-  if (['股東會', '董事會', '股東常會', '股東臨時會', '召開', '決議', '議案', '法說會', '業績說明會'].some(k => title.includes(k))) {
+  if (['股東會', '董事會', '股東常會', '股東臨時會', '召開', '決議', '議案'].some(k => title.includes(k))) {
     tags.push('meeting');
+  }
+
+  // 2b. 法說會
+  if (['法說會', '法人說明會', '業績說明會'].some(k => title.includes(k))) {
+    tags.push('earnings');
   }
 
   // 3. 股利公告

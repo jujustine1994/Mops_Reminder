@@ -1,3 +1,5 @@
+// 郵件模組：使用 Resend API 寄送 HTML 格式的公告通知信
+// 需在 .env 設定 RESEND_API_KEY 與 EMAIL_FROM
 const { Resend } = require('resend');
 require('dotenv').config();
 

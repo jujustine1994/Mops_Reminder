@@ -138,6 +138,12 @@ app.patch('/api/types/:id', (req, res) => {
   res.json({ ok: true });
 });
 
+// ---- 分類規則（單一來源，供前端說明彈窗使用）----
+const { CATEGORY_RULES } = require('./crawler');
+app.get('/api/categories', (req, res) => {
+  res.json(CATEGORY_RULES);
+});
+
 // ---- 歷史記錄 ----
 app.get('/api/history', (req, res) => {
   const limit = parseInt(req.query.limit || '100');

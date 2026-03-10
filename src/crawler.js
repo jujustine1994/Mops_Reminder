@@ -66,56 +66,31 @@ function toRocDate(date) {
   return `${y}${m}${d}`;
 }
 
+// 單一來源：所有分類的關鍵字定義，classifyType 與 API 都從這裡讀
+const CATEGORY_RULES = [
+  { id: 'financial',      label: '財務報告',    keywords: ['財務報告','季報','年報','半年報','財報','損益','獲利','盈餘','自結','營收'] },
+  { id: 'meeting',        label: '重要會議',    keywords: ['股東會','董事會','股東常會','股東臨時會','召開','決議','議案'] },
+  { id: 'earnings',       label: '法說會',      keywords: ['法說會','法人說明會','業績說明會','說明會'] },
+  { id: 'dividend',       label: '股利公告',    keywords: ['股利','除權','除息','盈餘分配','盈餘分派','現金','股票','配息','配股','配發'] },
+  { id: 'merger',         label: '合併/收購',  keywords: ['合併','收購','分割','購併','併購'], excludeKeywords: ['財務報告','營收'], note: '排除財務報告/營收誤判' },
+  { id: 'board',          label: '董監事異動',  keywords: ['辭職','卸任','新任','改派','改選','補選','解任','辭任','任期屆滿','委任','指派'] },
+  { id: 'capital_change', label: '股本變動',    keywords: ['可轉債','增資','私募','認股','股權','可轉換公司債','庫藏股','買回股份','減資','發行新股','公司債','CB','現增','註銷','轉換'] },
+  { id: 'asset_disposal', label: '處分資產',    keywords: ['處分','取得','資產','不動產','機器','設備','廠房','工程','土地'] },
+  { id: 'clarify',        label: '報導相關',    keywords: ['澄清','媒體','報導','報載','雜誌','內容','新聞'] },
+  { id: 'major',          label: '其他重大訊息', keywords: [], note: '以上皆不符合時的保底分類' },
+];
+
 function classifyType(title) {
   const tags = [];
 
-  // 1. 財務報告 (優先判斷，因為常被用來當排除條件)
-  const isFinancial = ['財務報告', '季報', '年報', '半年報', '財報', '損益', '獲利', '盈餘', '自結', '營收'].some(k => title.includes(k));
-  if (isFinancial) tags.push('financial');
-
-  // 2. 重要會議 (含董事會決議)
-  if (['股東會', '董事會', '股東常會', '股東臨時會', '召開', '決議', '議案'].some(k => title.includes(k))) {
-    tags.push('meeting');
+  for (const rule of CATEGORY_RULES) {
+    if (rule.id === 'major') continue;
+    if (!rule.keywords.some(k => title.includes(k))) continue;
+    if (rule.excludeKeywords && rule.excludeKeywords.some(k => title.includes(k))) continue;
+    tags.push(rule.id);
   }
 
-  // 2b. 法說會
-  if (['法說會', '法人說明會', '業績說明會'].some(k => title.includes(k))) {
-    tags.push('earnings');
-  }
-
-  // 3. 股利公告
-  if (['股利', '除權', '除息', '盈餘分配', '盈餘分派', '現金', '股票', '配息', '配股', '配發'].some(k => title.includes(k))) {
-    tags.push('dividend');
-  }
-
-  // 4. 合併/收購 (一次到位：有關鍵字 且 排除財報/營收誤判)
-  if (['合併', '收購', '分割', '購併', '併購'].some(k => title.includes(k)) && !title.includes('財務報告') && !title.includes('營收')) {
-    tags.push('merger');
-  }
-
-  // 5. 董監事異動 (只有出現變動用詞才算，單純的「董事會」標題不會被歸類在此)
-  if (['辭職', '卸任', '新任', '改派', '改選', '補選', '解任', '辭任', '任期屆滿', '委任', '指派'].some(k => title.includes(k))) {
-    tags.push('board');
-  }
-
-  // 6. 資本變動
-  if (['可轉債', '增資', '私募', '認股','股權','可轉換公司債', '庫藏股', '買回股份', '減資', '發行新股', '公司債', 'CB', '現增', '註銷', '轉換'].some(k => title.includes(k))) {
-    tags.push('capital_change');
-  }
-
-  // 7. 處分資產
-  if (['處分', '取得', '資產', '不動產', '機器', '設備', '廠房', '工程', '土地'].some(k => title.includes(k))) {
-    tags.push('asset_disposal');
-  }
-
-  // 8. 報導相關
-  if (['澄清', '媒體', '報導', '報載', '雜誌', '內容', '新聞'].some(k => title.includes(k))) {
-    tags.push('clarify');
-  }
-
-  // 保底：如果都沒對到
   if (tags.length === 0) tags.push('major');
-  
   return [...new Set(tags)];
 }
 
@@ -316,4 +291,4 @@ async function _fetchStockNameInternal(stockCode) {
   }
 }
 
-module.exports = { fetchAnnouncements, fetchStockName, classifyType, matchesEnabledTypes, closeBrowser };
+module.exports = { fetchAnnouncements, fetchStockName, classifyType, matchesEnabledTypes, closeBrowser, CATEGORY_RULES };

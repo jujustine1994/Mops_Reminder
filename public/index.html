@@ -221,6 +221,9 @@
         <button class="btn btn-primary" onclick="addSchedule()">＋ 新增</button>
       </div>
       <div class="stock-list" id="scheduleList"><span class="empty-hint">尚未設定排程時間</span></div>
+      <div style="margin-top:14px; padding:10px 14px; background:rgba(239,68,68,0.08); border-left:3px solid var(--danger); border-radius:6px; font-size:12px; color:var(--text2);">
+        ⚠️ <strong style="color:var(--danger);">注意：</strong>排程功能須保持程式持續執行才會自動觸發。關閉程式後排程將停止，不會在背景自動寄信。
+      </div>
     </div>
   <!-- 操作 -->
   <div style="display:flex; gap:12px; margin-top:10px">
@@ -292,18 +295,7 @@
             <th style="text-align:left;padding:6px 8px;border-bottom:1px solid var(--border);">關鍵字</th>
           </tr>
         </thead>
-        <tbody>
-          <tr><td style="padding:8px;color:var(--accent2);font-weight:700;white-space:nowrap;">財務報告</td><td style="padding:8px;color:var(--text2);font-size:13px;">財務報告、季報、年報、半年報、財報、損益、獲利、盈餘、自結、營收</td></tr>
-          <tr style="background:rgba(255,255,255,0.02)"><td style="padding:8px;color:var(--accent2);font-weight:700;white-space:nowrap;">重要會議</td><td style="padding:8px;color:var(--text2);font-size:13px;">股東會、董事會、股東常會、股東臨時會、召開、決議、議案</td></tr>
-          <tr><td style="padding:8px;color:var(--accent2);font-weight:700;white-space:nowrap;">法說會</td><td style="padding:8px;color:var(--text2);font-size:13px;">法說會、法人說明會、業績說明會</td></tr>
-          <tr style="background:rgba(255,255,255,0.02)"><td style="padding:8px;color:var(--accent2);font-weight:700;white-space:nowrap;">股利公告</td><td style="padding:8px;color:var(--text2);font-size:13px;">股利、除權、除息、盈餘分配、盈餘分派、現金、股票、配息、配股、配發</td></tr>
-          <tr><td style="padding:8px;color:var(--accent2);font-weight:700;white-space:nowrap;">合併/收購</td><td style="padding:8px;color:var(--text2);font-size:13px;">合併、收購、分割、購併、併購（排除財務報告/營收誤判）</td></tr>
-          <tr style="background:rgba(255,255,255,0.02)"><td style="padding:8px;color:var(--accent2);font-weight:700;white-space:nowrap;">董監事異動</td><td style="padding:8px;color:var(--text2);font-size:13px;">辭職、卸任、新任、改派、改選、補選、解任、辭任、任期屆滿、委任、指派</td></tr>
-          <tr><td style="padding:8px;color:var(--accent2);font-weight:700;white-space:nowrap;">股本變動</td><td style="padding:8px;color:var(--text2);font-size:13px;">可轉債、增資、私募、認股、股權、庫藏股、買回股份、減資、發行新股、公司債、CB、現增、註銷、轉換</td></tr>
-          <tr style="background:rgba(255,255,255,0.02)"><td style="padding:8px;color:var(--accent2);font-weight:700;white-space:nowrap;">處分資產</td><td style="padding:8px;color:var(--text2);font-size:13px;">處分、取得、資產、不動產、機器、設備、廠房、工程、土地</td></tr>
-          <tr><td style="padding:8px;color:var(--accent2);font-weight:700;white-space:nowrap;">報導相關</td><td style="padding:8px;color:var(--text2);font-size:13px;">澄清、媒體、報導、報載、雜誌、內容、新聞</td></tr>
-          <tr style="background:rgba(255,255,255,0.02)"><td style="padding:8px;color:var(--accent2);font-weight:700;white-space:nowrap;">其他重大訊息</td><td style="padding:8px;color:var(--text2);font-size:13px;">以上皆不符合時的保底分類</td></tr>
-        </tbody>
+        <tbody id="typesTableBody"></tbody>
       </table>
     </div>
   </div>
@@ -318,6 +310,21 @@ let history   = [];
 let schedules = [];
 let logs      = [];
 let currentStockName = '';
+let savedStateSnapshot = null;
+
+function captureState() {
+  return JSON.stringify({
+    stocks: stocks.map(s => s.code),
+    types: types.map(t => ({ id: t.id, enabled: t.enabled })),
+    schedules,
+    email: document.getElementById('emailInput')?.value.trim() || '',
+    checkDays: document.getElementById('checkDaysInput')?.value.trim() || '1',
+  });
+}
+
+function hasUnsavedChanges() {
+  return savedStateSnapshot !== null && captureState() !== savedStateSnapshot;
+}
 
 async function loadConfig() {
   try {
@@ -332,6 +339,7 @@ async function loadConfig() {
     renderTypes();
     renderSchedules();
     updateStats();
+    savedStateSnapshot = captureState();
   } catch(e) { showToast('⚠️ 載入設定失敗'); }
 }
 
@@ -347,6 +355,7 @@ async function saveConfig() {
       body: JSON.stringify({ email, checkDays, stocks, types, schedules }),
     });
     updateStats();
+    savedStateSnapshot = captureState();
     showToast('✅ 設定已儲存！');
   } catch(e) { showToast('⚠️ 儲存失敗'); }
 }
@@ -363,6 +372,12 @@ async function testEmail() {
 }
 
 async function runNow() {
+  if (hasUnsavedChanges()) {
+    if (confirm('⚠️ 設定有尚未儲存的變更。\n\n要先儲存再執行嗎？\n（按「取消」將使用上次儲存的設定繼續）')) {
+      await saveConfig();
+    }
+  }
+
   if (!confirm('💡 按下「立即檢查」將會先清除目前的通知紀錄（等同於下方的清除紀錄按鈕），以確保抓取到最新的完整公告，確定要開始嗎？')) return;
 
   // 1. 先清除歷史紀錄
@@ -426,6 +441,21 @@ function renderLogs() {
 
 function toggleGuide() { document.getElementById('guideModal').classList.toggle('active'); }
 function toggleTypeInfo() { document.getElementById('typeInfoModal').classList.toggle('active'); }
+
+async function loadCategories() {
+  try {
+    const res = await fetch('/api/categories');
+    const rules = await res.json();
+    const tbody = document.getElementById('typesTableBody');
+    tbody.innerHTML = rules.map((rule, i) => {
+      const rowStyle = i % 2 === 1 ? ' style="background:rgba(255,255,255,0.02)"' : '';
+      let keywordText = rule.keywords.join('、');
+      if (rule.keywords.length === 0 && rule.note) keywordText = rule.note;
+      else if (rule.note) keywordText += `（${rule.note}）`;
+      return `<tr${rowStyle}><td style="padding:8px;color:var(--accent2);font-weight:700;white-space:nowrap;">${rule.label}</td><td style="padding:8px;color:var(--text2);font-size:13px;">${keywordText}</td></tr>`;
+    }).join('');
+  } catch(e) {}
+}
 
 async function fetchName(code) {
   if (!code || code.length < 4) return '';
@@ -566,7 +596,7 @@ function showToast(msg) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  loadConfig(); loadHistory(); fetchLogs(); setInterval(fetchLogs, 3000);
+  loadConfig(); loadHistory(); fetchLogs(); loadCategories(); setInterval(fetchLogs, 3000);
   document.getElementById('stockCode').addEventListener('keydown', e => { if (e.key === 'Enter') addStock(); });
   document.getElementById('scheduleInput').addEventListener('keydown', e => { if (e.key === 'Enter') addSchedule(); });
 });

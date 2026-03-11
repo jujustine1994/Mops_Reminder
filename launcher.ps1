@@ -1,4 +1,4 @@
-# 台股公告雷達 啟動器
+﻿# 台股公告雷達 啟動器
 # 負責環境檢查、首次安裝說明、啟動後端伺服器
 
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8

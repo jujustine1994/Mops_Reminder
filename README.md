@@ -66,7 +66,8 @@
 - `src/`: 核心程式碼 (爬蟲、資料庫、郵件發送、伺服器)
 - `public/`: 網頁端介面
 - `data/`: SQLite 資料庫存放區
-- `台股公告監控雷達.bat`: Windows 一鍵啟動腳本
+- `台股公告監控雷達.bat`: 薄殼啟動器（呼叫 launcher.ps1）
+- `launcher.ps1`: 環境檢查、首次安裝說明、啟動邏輯
 - `.env`: 環境變數設定 (API Key 等)
 
 ## 🚀 Release 流程

@@ -21,7 +21,8 @@ public/index.html    → 唯一前端頁面（深色主題，Vanilla JS）
 data/mops.db         → SQLite 資料庫（.gitignore，不進版本控制）
 .env                 → 環境變數（.gitignore，不進版本控制）
 .env.example         → 環境變數範本（進版本控制）
-台股公告監控雷達.bat  → Windows 一鍵啟動腳本
+台股公告監控雷達.bat  → 薄殼啟動器：只負責呼叫 launcher.ps1
+launcher.ps1          → 環境檢查、首次安裝說明、啟動後端伺服器
 ```
 
 ---

@@ -216,7 +216,7 @@ if %errorlevel% equ 0 (
 echo [OK] Port 7853 可用。
 
 :: ============================================================
-:: [4/4] 檢查 npm 套件
+:: [4/4] 檢查 pnpm 套件
 :: ============================================================
 echo.
 echo [4/4] 檢查套件...
@@ -226,14 +226,14 @@ if not exist node_modules (
     set /p CONFIRM=是否要立即安裝套件？初次安裝需要幾分鐘 [Y/n]（直接按 Enter 代表同意）：
     if "!CONFIRM!"=="" set CONFIRM=Y
     if /i "!CONFIRM!" neq "Y" (
-        echo 已取消。請手動執行 npm install 後再重新啟動。
+        echo 已取消。請手動執行 pnpm install 後再重新啟動。
         pause
         exit /b 1
     )
     echo [INFO] 安裝中...
-    call npm install --no-fund --no-audit
+    call pnpm install --no-fund --no-audit
     if !errorlevel! neq 0 (
-        echo [ERROR] npm install 失敗，請確認網路連線後重試。
+        echo [ERROR] pnpm install 失敗，請確認網路連線後重試。
         pause
         exit /b 1
     )

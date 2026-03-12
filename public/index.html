@@ -93,11 +93,11 @@
   .stat-num { font-family: var(--mono); font-size: 26px; font-weight: 700; color: var(--accent); }
   .stat-label { font-size: 11px; color: var(--text3); margin-top: 4px; }
   .history-list { display: flex; flex-direction: column; gap: 8px; }
-  .history-item { display: flex; align-items: center; gap: 12px; padding: 10px 14px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; }
+  .history-item { display: flex; align-items: center; gap: 12px; padding: 12px 14px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; }
   .history-code { font-family: var(--mono); color: var(--accent); font-weight: 700; width: 50px; flex-shrink: 0; }
   .history-type { font-size: 11px; padding: 2px 8px; background: rgba(59,130,246,0.12); border: 1px solid rgba(59,130,246,0.25); border-radius: 10px; color: var(--accent2); white-space: nowrap; flex-shrink: 0; }
-  .history-title { flex: 1; color: var(--text2); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .history-time { font-family: var(--mono); font-size: 10px; color: var(--text3); white-space: nowrap; }
+  .history-title { flex: 1; color: #e2e8f0; font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .history-time { font-family: var(--mono); font-size: 13px; color: var(--text2); white-space: nowrap; }
   .toast { position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%) translateY(80px); background: var(--accent); color: #0a0e1a; padding: 12px 24px; border-radius: 10px; font-family: var(--mono); font-size: 13px; font-weight: 700; transition: transform 0.3s ease; z-index: 999; box-shadow: 0 8px 30px rgba(0,212,170,0.4); }
   .toast.show { transform: translateX(-50%) translateY(0); }
 
@@ -572,7 +572,7 @@ function renderHistory() {
     }
 
     return `<div class="history-item" style="flex-wrap:wrap">
-      <span class="history-code">${h.stock_code}</span>${h.stock_name ? `<span style="color:var(--text2); font-size:12px; margin-right:8px; flex-shrink:0">${h.stock_name}</span>` : ''}
+      <span class="history-code">${h.stock_code}</span>${h.stock_name ? `<span style="color:var(--text2); font-size:13px; margin-right:8px; flex-shrink:0">${h.stock_name}</span>` : ''}
       <div style="display:flex; flex-wrap:wrap; gap:4px; margin-right:8px">${typeLabels}</div>
       <span class="history-title" style="flex-basis:100%; margin-top:5px; order:10">${title}</span>
       <span class="history-time" style="margin-left:auto">${timeStr}</span>

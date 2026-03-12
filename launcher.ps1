@@ -14,8 +14,18 @@ Write-Host ""
 # [1/4] 檢查 Node.js
 # ======================================
 Write-Host "[1/4] 檢查 Node.js 環境..." -ForegroundColor Cyan
+$isArm64 = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture -eq 'Arm64'
 if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
     Write-Host "[WARNING] 未偵測到 Node.js，本程式需要 Node.js 才能執行。" -ForegroundColor Yellow
+    # ARM64 系統常見狀況：之前裝了 x64 版 Node.js 導致偵測失敗
+    if ($isArm64) {
+        Write-Host ""
+        Write-Host "  [!] 偵測到您的電腦是 ARM 架構（例如 MacBook 上的 Windows 虛擬機）。" -ForegroundColor Yellow
+        Write-Host "  [!] 如果您之前已安裝過 Node.js 但還是看到這個訊息，" -ForegroundColor Yellow
+        Write-Host "      請先到「設定 → 應用程式」搜尋 Node.js 並移除，" -ForegroundColor Yellow
+        Write-Host "      移除後重新點兩下啟動檔，我們會自動幫您安裝正確版本。" -ForegroundColor Yellow
+        Write-Host ""
+    }
     $ans = Read-Host "是否要立即安裝 Node.js？[Y/n] - 直接按 Enter 代表同意"
     if ($ans -eq "" -or $ans -ieq "Y") {
         if (Get-Command winget -ErrorAction SilentlyContinue) {
@@ -24,7 +34,9 @@ if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
         } else {
             Write-Host "[INFO] 正在下載 Node.js 安裝程式，請稍候..." -ForegroundColor Gray
             $ver = ((Invoke-RestMethod 'https://nodejs.org/dist/index.json') | Where-Object { $_.lts } | Select-Object -First 1).version
-            $url = "https://nodejs.org/dist/$ver/node-$ver-x64.msi"
+            # 偵測架構：Windows ARM64 需要 arm64 版本，否則 PATH 可能不被識別
+            $arch = if ([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture -eq 'Arm64') { "arm64" } else { "x64" }
+            $url = "https://nodejs.org/dist/$ver/node-$ver-$arch.msi"
             $out = "$env:TEMP\node_lts.msi"
             Write-Host "[INFO] 下載 $url ..." -ForegroundColor Gray
             Invoke-WebRequest $url -OutFile $out

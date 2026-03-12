@@ -51,7 +51,9 @@ async function runCheck() {
 
       for (const ann of announcements) {
         if (!isNotified(ann.stockCode, ann.title, ann.annDate)) {
-          if (enabledTypes.length === 0 || enabledTypes.includes(ann.type) || enabledTypes.includes('major')) {
+          // ann.type 是 array（如 ['financial','meeting']），需用 some() 比對，不能用 includes()
+        const typeMatched = ann.type.some(t => enabledTypes.includes(t));
+        if (enabledTypes.length === 0 || typeMatched) {
             ann.stockName = stock.name || stock.code;
             newAnnouncements.push(ann);
             addHistory({ ...ann, stockName: ann.stockName });

@@ -35,17 +35,22 @@ server.js 啟動
   → db.js 初始化 SQLite（建表、插入預設類型）
   → startScheduler() 從 DB 讀排程，啟動 cron jobs
   → Express 開始監聽 Port 7853
+  → child_process.exec 自動開啟瀏覽器至 http://localhost:7853
 ```
 
 ### 定時掃描流程
 ```
 cron 觸發 / POST /api/run-now
-  → scheduler.runCheck()
+  → scheduler.runCheck()  （isRunning 鎖，防止多次重疊執行）
       → db.getStocks()          取監控股票清單
       → db.getTypes()           取啟用的公告類型
       → crawler.fetchAnnouncements(code, fromDate, toDate)  爬蟲抓公告
-          → Puppeteer 開 Chrome → 前往 MOPS → 送 AJAX POST 查詢
-          → crawler.classifyType(title)  用 CATEGORY_RULES 打標籤
+          → Puppeteer 開 Chrome
+          → 前往 mopsov.twse.com.tw/mops/web/t05st01
+          → 填入表單（co_id、year、month）→ 點查詢按鈕
+          → 等待結果表格出現 → 解析 HTML（cheerio）
+          → crawler.classifyType(title)  回傳 string[]（多標籤）
+      → 用 some() 比對 ann.type[] 與 enabledTypes[]，過濾不符合類型的公告
       → db.isNotified()         過濾已通知過的公告
       → db.addHistory()         寫入歷史記錄
       → mailer.sendNotification()  寄 Email（Resend API）

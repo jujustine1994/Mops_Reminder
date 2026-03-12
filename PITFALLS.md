@@ -22,6 +22,14 @@
 
 ---
 
+### scheduler.js 類型過濾：ann.type 是 array，不能用 includes()
+- **問題**：若把「其他重大訊息（major）」停用，其他有勾的類型也全部失效，公告一筆都進不來
+- **原因**：`classifyType()` 回傳 `string[]`（多標籤），但舊寫法用 `enabledTypes.includes(ann.type)` 把整個 array 當 string 比對，永遠是 false
+- **解法**：改用 `ann.type.some(t => enabledTypes.includes(t))`（已修正於 2026-03-12）
+- **禁止**：不要在比對 ann.type 時用 `===` 或 `includes(ann.type)`
+
+---
+
 ### MOPS 公告無固定直接連結
 - 問題：無法對單筆公告建立可點擊的超連結
 - 原因：MOPS 使用 POST form 導航，個別公告需要 `seq_no` 參數，而 `seq_no` 只有爬取列表當下才能取得；`ajax_t05sr01` 是 AJAX 端點，非可直接瀏覽的頁面

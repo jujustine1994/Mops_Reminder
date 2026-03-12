@@ -71,12 +71,12 @@
 ## 啟動器相關
 
 ### PowerShell PS1 檔案中文亂碼閃退
-- 問題：台股公告監控雷達.ps1 包含中文，雙擊 bat 後視窗閃退，錯誤訊息顯示「陣列索引運算式遺失」或「字串遺漏結尾字元」
+- 問題：launcher.ps1 包含中文，雙擊 bat 後視窗閃退，錯誤訊息顯示「陣列索引運算式遺失」或「字串遺漏結尾字元」
 - 原因：Write 工具存出 UTF-8 without BOM，Windows PowerShell 5.x 用系統預設編碼（CP950）讀取，中文 bytes 被誤解析成語法錯誤
 - 解法：用 PowerShell 將 PS1 重新存成 UTF-8 with BOM：
   ```powershell
-  $content = Get-Content '台股公告監控雷達.ps1' -Raw -Encoding UTF8
-  [System.IO.File]::WriteAllText('台股公告監控雷達.ps1', $content, [System.Text.UTF8Encoding]::new($true))
+  $content = Get-Content 'launcher.ps1' -Raw -Encoding UTF8
+  [System.IO.File]::WriteAllText('launcher.ps1', $content, [System.Text.UTF8Encoding]::new($true))
   ```
 - 禁止：不要在 PS1 裡放中文後直接使用 Write 工具存檔，必須補加 BOM
 

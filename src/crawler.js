@@ -105,7 +105,7 @@ function toRocDate(date) {
 const CATEGORY_RULES = [
   { id: 'financial',      label: '財務報告',    keywords: ['財務報告','季報','年報','半年報','財報','損益','獲利','盈餘','自結','營收','營運成績','營運結果','營運績效'] },
   { id: 'meeting',        label: '重要會議',    keywords: ['股東會','董事會','股東常會','股東臨時會','召開','決議','議案'] },
-  { id: 'earnings',       label: '法說會',      keywords: ['法說會','法人說明會','業績說明會','說明會','投資人會議','論壇','投資會議','conference'] },
+  { id: 'earnings',       label: '法說會',      keywords: ['法說會','法人說明會','業績說明會','說明會','投資人會議','論壇','投資會議','conference','roadshow'] },
   { id: 'dividend',       label: '股利公告',    keywords: ['股利','除權','除息','盈餘分配','盈餘分派','現金','股票','配息','配股','配發'] },
   { id: 'merger',         label: '合併/收購',   keywords: ['合併','收購','分割','購併','併購'], excludeKeywords: ['財務報告','營收'], note: '排除財務報告/營收誤判' },
   { id: 'board',          label: '董監事異動',  keywords: ['辭職','卸任','新任','改派','改選','補選','解任','辭任','任期屆滿','委任','指派'] },
@@ -117,11 +117,12 @@ const CATEGORY_RULES = [
 
 function classifyType(title) {
   const tags = [];
+  const titleLower = title.toLowerCase(); // 統一轉小寫，讓關鍵字比對不分大小寫
 
   for (const rule of CATEGORY_RULES) {
     if (rule.id === 'major') continue;
-    if (!rule.keywords.some(k => title.includes(k))) continue;
-    if (rule.excludeKeywords && rule.excludeKeywords.some(k => title.includes(k))) continue;
+    if (!rule.keywords.some(k => titleLower.includes(k.toLowerCase()))) continue;
+    if (rule.excludeKeywords && rule.excludeKeywords.some(k => titleLower.includes(k.toLowerCase()))) continue;
     tags.push(rule.id);
   }
 

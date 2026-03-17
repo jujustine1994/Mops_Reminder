@@ -154,7 +154,7 @@ function addHistory(item) {
 }
 
 function getHistory(limit = 100) {
-  return db.prepare('SELECT * FROM history ORDER BY notified_at DESC LIMIT ?').all(limit);
+  return db.prepare('SELECT * FROM history ORDER BY ann_date DESC, ann_time DESC LIMIT ?').all(limit);
 }
 
 function clearHistory() {

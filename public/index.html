@@ -547,7 +547,17 @@ function renderHistory() {
   const el = document.getElementById('historyList');
   if (!history.length) { el.innerHTML = '<div class="empty-hint" style="padding:8px 0">尚無通知記錄</div>'; return; }
   el.innerHTML = history.slice(0, 15).map(h => {
-    const timeStr = h.notified_at ? h.notified_at.slice(5, 16) : '';
+    const timeStr = (() => {
+      if (h.ann_date) {
+        const parts = h.ann_date.split('/');
+        if (parts.length === 3) {
+          const mmdd = `${parts[1]}-${parts[2]}`;
+          const hhmm = h.ann_time ? h.ann_time.slice(0, 5) : '';
+          return hhmm ? `${mmdd} ${hhmm}` : mmdd;
+        }
+      }
+      return h.notified_at ? h.notified_at.slice(5, 16) : '';
+    })();
     const title   = h.link ? `<a href="${h.link}" target="_blank" style="color:#e2e8f0;text-decoration:none">${h.title}</a>` : h.title;
     
     let typeLabels = '';

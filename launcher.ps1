@@ -28,10 +28,17 @@ if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
     }
     $ans = Read-Host "是否要立即安裝 Node.js？[Y/n] - 直接按 Enter 代表同意"
     if ($ans -eq "" -or $ans -ieq "Y") {
+        $wingetOk = $false
         if (Get-Command winget -ErrorAction SilentlyContinue) {
             Write-Host "[INFO] 使用 winget 安裝 Node.js LTS，請稍候..." -ForegroundColor Gray
             winget install --id OpenJS.NodeJS.LTS -e --silent --accept-source-agreements --accept-package-agreements
-        } else {
+            if ($LASTEXITCODE -eq 0) {
+                $wingetOk = $true
+            } else {
+                Write-Host "[WARNING] winget 安裝失敗（exit code: $LASTEXITCODE），改用直接下載方式..." -ForegroundColor Yellow
+            }
+        }
+        if (-not $wingetOk) {
             Write-Host "[INFO] 正在下載 Node.js 安裝程式，請稍候..." -ForegroundColor Gray
             $ver = ((Invoke-RestMethod 'https://nodejs.org/dist/index.json') | Where-Object { $_.lts } | Select-Object -First 1).version
             # 偵測架構：Windows ARM64 需要 arm64 版本，否則 PATH 可能不被識別

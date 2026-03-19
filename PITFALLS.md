@@ -82,6 +82,14 @@
 
 ---
 
+### winget 安裝 Node.js 靜默失敗 → 無限重新安裝循環
+- 問題：使用者安裝完 Node.js 後重開機，啟動器還是說找不到 Node.js，一直重複安裝
+- 原因：winget 在 ARM64 Parallels 虛擬機上靜默失敗（exit code 非 0），舊版程式未檢查 `$LASTEXITCODE`，直接繼續執行，結果什麼都沒裝成
+- 解法：winget 後加 `$LASTEXITCODE` 檢查，失敗就 fallback 到直接下載 MSI（MSI 路徑已有 ARM64 架構偵測）
+- 禁止：不要假設 winget `--silent` 一定成功，必須檢查 exit code
+
+---
+
 ## Email 相關
 
 ### Gmail SMTP 已棄用，改用 Resend API

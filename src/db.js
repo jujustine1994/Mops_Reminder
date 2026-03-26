@@ -6,6 +6,9 @@ const DATA_DIR = path.join(__dirname, '..', 'data');
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 
 const db = new Database(path.join(DATA_DIR, 'mops.db'));
+const refDb = new Database(path.join(DATA_DIR, 'stock_ref.db'));
+
+refDb.exec('CREATE TABLE IF NOT EXISTS stock_ref (code TEXT PRIMARY KEY, name TEXT NOT NULL)');
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS config (
@@ -17,11 +20,6 @@ db.exec(`
     code TEXT PRIMARY KEY,
     name TEXT DEFAULT '',
     created_at TEXT DEFAULT (datetime('now', 'localtime'))
-  );
-
-  CREATE TABLE IF NOT EXISTS stock_ref (
-    code TEXT PRIMARY KEY,
-    name TEXT NOT NULL
   );
 
   CREATE TABLE IF NOT EXISTS announcement_types (
@@ -77,19 +75,17 @@ function setConfig(key, value) {
 
 // ---- Stocks ----
 function getStocks() {
-  // 使用 COALESCE 優先取對照表 (stock_ref) 的名字，若無才用原本監控表的名字
-  return db.prepare(`
-    SELECT w.code, COALESCE(r.name, w.name) as name, w.created_at
-    FROM watched_stocks w
-    LEFT JOIN stock_ref r ON w.code = r.code
-    ORDER BY w.code
-  `).all();
+  const stocks = db.prepare('SELECT code, name, created_at FROM watched_stocks ORDER BY code').all();
+  return stocks.map(w => {
+    const ref = refDb.prepare('SELECT name FROM stock_ref WHERE code = ?').get(w.code);
+    return { ...w, name: ref?.name || w.name };
+  });
 }
 
 function findStockName(code) {
   code = code.trim();
   // 1. 先從對照表找 (最優先，官方清單)
-  const ref = db.prepare('SELECT name FROM stock_ref WHERE code = ?').get(code);
+  const ref = refDb.prepare('SELECT name FROM stock_ref WHERE code = ?').get(code);
   if (ref && ref.name) return ref.name;
 
   // 2. 再從監控清單找
@@ -104,8 +100,8 @@ function findStockName(code) {
 }
 
 function upsertStockRef(stockList) {
-  const insert = db.prepare('INSERT OR REPLACE INTO stock_ref (code, name) VALUES (?, ?)');
-  const transaction = db.transaction((list) => {
+  const insert = refDb.prepare('INSERT OR REPLACE INTO stock_ref (code, name) VALUES (?, ?)');
+  const transaction = refDb.transaction((list) => {
     for (const s of list) {
       if (s.code && s.name) insert.run(String(s.code).trim(), String(s.name).trim());
     }

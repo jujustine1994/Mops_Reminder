@@ -1,4 +1,3 @@
 node_modules/
-data/
+data/mops.db
 .env
-*.db

@@ -17,6 +17,12 @@
 
 ## 更新記錄
 
+### 2026-05-12
+- **修復**: Node.js 已安裝但啟動器誤判需重裝 — 新增 PATH 刷新與常見安裝路徑搜尋，避免 `-NoProfile` 啟動時 `Get-Command node` 找不到
+- **修復**: `pnpm install --no-fund --no-audit` 報 Unknown options 錯誤 — 移除 npm 專屬旗標，改為直接執行 `pnpm install`
+- **新增**: 啟動器在執行 `pnpm install` 前新增 pnpm 存在性檢查，若未安裝自動以 `npm install -g pnpm` 補裝
+- **維護**: 上述三個坑補記至 `PITFALLS.md`
+
 ### 2026-03-19
 - **修復**: winget 安裝 Node.js 靜默失敗導致無限重裝循環 — 加入 `$LASTEXITCODE` 檢查，失敗自動 fallback 到 MSI 直接下載（ARM64 架構偵測保留）
 

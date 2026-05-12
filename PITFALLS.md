@@ -68,6 +68,14 @@
 
 ---
 
+### pnpm 不接受 npm 專屬旗標（--no-fund、--no-audit）
+- 問題：執行 `pnpm install --no-fund --no-audit` 報 `Unknown options: 'fund', 'audit'` 並中斷
+- 原因：`--no-fund` / `--no-audit` 是 npm 的旗標，pnpm 不認識
+- 解法：直接用 `pnpm install`，不要帶這兩個參數
+- 禁止：不要把 npm 的 CLI 旗標複製貼上到 pnpm 指令
+
+---
+
 ## 啟動器相關
 
 ### PowerShell PS1 檔案中文亂碼閃退
@@ -79,6 +87,14 @@
   [System.IO.File]::WriteAllText('launcher.ps1', $content, [System.Text.UTF8Encoding]::new($true))
   ```
 - 禁止：不要在 PS1 裡放中文後直接使用 Write 工具存檔，必須補加 BOM
+
+---
+
+### Node.js 已安裝但啟動器仍提示重新安裝（PATH 未刷新）
+- 問題：Node.js 已安裝，啟動器卻顯示「未偵測到 Node.js」並詢問是否安裝
+- 原因：BAT 以 `powershell -NoProfile` 呼叫 PS1，在某些情況下 session 的 `$env:PATH` 尚未包含 Node.js 目錄，導致 `Get-Command node` 找不到
+- 解法：偵測前先執行 `$env:PATH = [System.Environment]::GetEnvironmentVariable("PATH","Machine") + ";" + ...User`，刷新後再找；仍找不到才搜尋常見安裝路徑（`C:\Program Files\nodejs\node.exe` 等）
+- 禁止：不要只靠 `Get-Command node` 單一判斷，PATH 可能因啟動方式不同而不完整
 
 ---
 

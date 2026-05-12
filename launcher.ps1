@@ -15,7 +15,28 @@ Write-Host ""
 # ======================================
 Write-Host "[1/4] 檢查 Node.js 環境..." -ForegroundColor Cyan
 $isArm64 = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture -eq 'Arm64'
-if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
+
+function Find-NodeExe {
+    # 1. 直接從目前 PATH 找
+    $cmd = Get-Command node -ErrorAction SilentlyContinue
+    if ($cmd) { return $cmd.Path }
+    # 2. 刷新 PATH 再找（-NoProfile 啟動時 PATH 可能尚未更新）
+    $env:PATH = [System.Environment]::GetEnvironmentVariable("PATH", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("PATH", "User")
+    $cmd = Get-Command node -ErrorAction SilentlyContinue
+    if ($cmd) { return $cmd.Path }
+    # 3. 搜尋常見安裝路徑
+    @(
+        "C:\Program Files\nodejs\node.exe",
+        "C:\Program Files (x86)\nodejs\node.exe",
+        "$env:LOCALAPPDATA\Programs\nodejs\node.exe"
+    ) | ForEach-Object {
+        if (Test-Path $_) { return $_ }
+    }
+    return $null
+}
+
+$nodePath = Find-NodeExe
+if (-not $nodePath) {
     Write-Host "[WARNING] 未偵測到 Node.js，本程式需要 Node.js 才能執行。" -ForegroundColor Yellow
     # ARM64 系統常見狀況：之前裝了 x64 版 Node.js 導致偵測失敗
     if ($isArm64) {
@@ -63,6 +84,11 @@ if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
         Read-Host "按 Enter 關閉"; exit 1
     }
 } else {
+    # 若是從常見路徑找到但不在 PATH，補進去確保後續指令可用
+    $nodeDir = Split-Path $nodePath
+    if ($env:PATH -notlike "*$nodeDir*") {
+        $env:PATH = "$nodeDir;$env:PATH"
+    }
     $nodeVer = node -v
     Write-Host "[OK] Node.js $nodeVer 已安裝。" -ForegroundColor Green
 }
@@ -188,6 +214,22 @@ Write-Host "[OK] Port 7853 可用。" -ForegroundColor Green
 # ======================================
 Write-Host ""
 Write-Host "[4/4] 檢查套件..." -ForegroundColor Cyan
+
+# 確認 pnpm 存在；若無則先用 npm 安裝
+$env:PATH = [System.Environment]::GetEnvironmentVariable("PATH", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("PATH", "User")
+if (-not (Get-Command pnpm -ErrorAction SilentlyContinue)) {
+    Write-Host "[INFO] 未偵測到 pnpm，使用 npm 自動安裝中..." -ForegroundColor Gray
+    npm install -g pnpm --silent
+    $env:PATH = [System.Environment]::GetEnvironmentVariable("PATH", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("PATH", "User")
+    if (-not (Get-Command pnpm -ErrorAction SilentlyContinue)) {
+        Write-Host "[ERROR] pnpm 安裝失敗，請手動執行：npm install -g pnpm" -ForegroundColor Red
+        Read-Host "按 Enter 關閉"; exit 1
+    }
+    Write-Host "[OK] pnpm 安裝完成。" -ForegroundColor Green
+} else {
+    Write-Host "[OK] pnpm 已就緒。" -ForegroundColor Green
+}
+
 if (-not (Test-Path "node_modules")) {
     Write-Host ""
     Write-Host "  ============================================" -ForegroundColor Cyan
@@ -208,7 +250,7 @@ if (-not (Test-Path "node_modules")) {
     $ans = Read-Host "[WARNING] 找不到套件資料夾，是否要立即安裝？初次安裝需要幾分鐘 [Y/n] - 直接按 Enter 代表同意"
     if ($ans -eq "" -or $ans -ieq "Y") {
         Write-Host "[INFO] 安裝中..." -ForegroundColor Gray
-        & pnpm install --no-fund --no-audit
+        & pnpm install
         if ($LASTEXITCODE -ne 0) {
             Write-Host "[ERROR] pnpm install 失敗，請確認網路連線後重試。" -ForegroundColor Red
             Read-Host "按 Enter 關閉"; exit 1
@@ -221,6 +263,8 @@ if (-not (Test-Path "node_modules")) {
 } else {
     Write-Host "[OK] 套件已就緒。" -ForegroundColor Green
 }
+
+
 
 # ======================================
 # 啟動後端伺服器

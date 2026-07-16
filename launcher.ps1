@@ -6,6 +6,44 @@ $host.UI.RawUI.WindowTitle = "TWSTOCK RADAR - Created by CTH"
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 Set-Location $ScriptDir
 
+# ======================================
+# 執行紀錄（必加，須放在 trap 之前，閃退才記得到）
+# 與主程式（src/logger.js）寫同一個 logs\app.log，兩邊都開檔→寫→關檔，不持有 handle（地雷十）
+# ======================================
+$LogFile = Join-Path $ScriptDir "logs\app.log"
+New-Item -ItemType Directory -Force (Split-Path $LogFile) | Out-Null
+$Utf8NoBom = [System.Text.UTF8Encoding]::new($false)   # 不可用 Add-Content -Encoding UTF8，會寫 BOM（地雷十一）
+
+function Write-Log {
+    param([string]$Msg, [string]$Level = "INFO")
+    $line = "[{0}] [{1,-5}] {2}`r`n" -f (Get-Date -Format "HH:mm:ss"), $Level, $Msg
+    try { [System.IO.File]::AppendAllText($LogFile, $line, $Utf8NoBom) } catch {}   # 不持有 handle（地雷十）
+}
+
+function Write-LogHeader {
+    param([string]$Msg)
+    $line = "=== {0} {1} ===`r`n" -f (Get-Date -Format "yyyy-MM-dd HH:mm:ss"), $Msg
+    try { [System.IO.File]::AppendAllText($LogFile, $line, $Utf8NoBom) } catch {}
+}
+
+Write-LogHeader "啟動"
+
+# 攔截所有未預期例外，防止視窗直接閃退
+trap {
+    Write-Log "[CRASH] $($_.Exception.Message) @ 第 $($_.InvocationInfo.ScriptLineNumber) 行" "FATAL"
+    Write-Host ""
+    Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Red
+    Write-Host "[CRASH] 意外錯誤，程式無法繼續執行" -ForegroundColor Red
+    Write-Host ""
+    Write-Host "  錯誤訊息：$($_.Exception.Message)" -ForegroundColor Yellow
+    Write-Host "  發生位置：$($_.InvocationInfo.ScriptLineNumber) 行" -ForegroundColor Gray
+    Write-Host ""
+    Write-Host "  已記錄至 logs\app.log，請連同此畫面回報給開發者。" -ForegroundColor White
+    Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Red
+    Read-Host "按 Enter 關閉"
+    exit 1
+}
+
 Clear-Host
 Write-Host "[INFO] Starting TWSTOCK RADAR..." -ForegroundColor Green
 Write-Host ""
@@ -204,6 +242,7 @@ Write-Host ""
 Write-Host "[3/4] 檢查 Port 7853 是否可用..." -ForegroundColor Cyan
 $portInUse = Get-NetTCPConnection -LocalPort 7853 -State Listen -ErrorAction SilentlyContinue
 if ($portInUse) {
+    Write-Log "Port 7853 已被佔用" "ERROR"
     Write-Host "[WARNING] Port 7853 已被其他程式佔用，請關閉後重試。" -ForegroundColor Yellow
     Read-Host "按 Enter 關閉"; exit 1
 }
@@ -252,6 +291,7 @@ if (-not (Test-Path "node_modules")) {
         Write-Host "[INFO] 安裝中..." -ForegroundColor Gray
         & pnpm install
         if ($LASTEXITCODE -ne 0) {
+            Write-Log "pnpm install 失敗（回傳 $LASTEXITCODE）" "ERROR"
             Write-Host "[ERROR] pnpm install 失敗，請確認網路連線後重試。" -ForegroundColor Red
             Read-Host "按 Enter 關閉"; exit 1
         }
@@ -276,10 +316,14 @@ Write-Host "    請保持此視窗開啟以維持系統運作" -ForegroundColor 
 Write-Host "  ========================================================" -ForegroundColor Green
 Write-Host ""
 
+Write-Log "環境就緒 | Node.js $(node -v)"
+
+# 主程式執行期間由它自己寫 log（src/logger.js），launcher 不寫（避免搶 handle，地雷十）
 node src/server.js
 $exitCode = $LASTEXITCODE
 
 if ($exitCode -ne 0) {
+    Write-Log "主程式異常結束（exit code $exitCode）" "ERROR"
     Write-Host ""
     Write-Host "[ERROR] 程式異常停止。" -ForegroundColor Red
     Read-Host "按 Enter 關閉"

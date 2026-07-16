@@ -3,9 +3,16 @@ const cron = require('node-cron');
 const { getStocks, getTypes, getConfig, isNotified, addHistory, getSchedules } = require('./db');
 const { fetchAnnouncements } = require('./crawler');
 const { sendNotification } = require('./mailer');
+const { writeLog, writeLogHeader, maskEmail } = require('./logger');
 
 let isRunning = false;   // 防止同時多個掃描重疊執行
 let activeTasks = [];    // 目前存活的 cron job 清單，用於重設排程時先清除舊的
+
+/** 把起始時間格式化成「N分N秒」，供任務結果行記錄耗時 */
+function fmtElapsed(startTime) {
+  const s = Math.round((Date.now() - startTime.getTime()) / 1000);
+  return `${Math.floor(s / 60)}分${s % 60}秒`;
+}
 
 /**
  * 執行一次完整公告掃描：
@@ -26,14 +33,19 @@ async function runCheck() {
 
   try {
     const stocks = getStocks();
-    if (stocks.length === 0) {
-      console.log('[scheduler] 沒有監控的股票');
-      return { checked: 0, newAnnouncements: 0 };
-    }
-
     const enabledTypes = getTypes().filter(t => t.enabled).map(t => t.id);
     const toEmail = getConfig('email');
     const checkDays = parseInt(getConfig('checkDays', '1'));
+
+    // ---- 三段式第一段：任務起始行（唯一有完整日期的行，關鍵設定塞同一行）----
+    // 收件者 Email 遮蔽後才落檔，不寫全文（個資）
+    writeLogHeader(`檢查公告 | ${stocks.length}檔追蹤 | ${checkDays}天內 | 收件:${toEmail ? maskEmail(toEmail) : '未設定'}`);
+
+    if (stocks.length === 0) {
+      console.log('[scheduler] 沒有監控的股票');
+      writeLog(`完成，無追蹤股票，耗時 ${fmtElapsed(startTime)}`, 'OK');
+      return { checked: 0, newAnnouncements: 0 };
+    }
 
     if (!toEmail) {
       console.log('[scheduler] 尚未設定 Email，跳過通知');
@@ -65,12 +77,18 @@ async function runCheck() {
       await new Promise(r => setTimeout(r, 500));
     }
 
+    let mailed = false;
+    let mailFailed = false;
     if (newAnnouncements.length > 0) {
       if (toEmail) {
         try {
           await sendNotification(toEmail, newAnnouncements);
+          mailed = true;
           console.log(`[scheduler] Email 已寄送至 ${toEmail}`);
         } catch (mailErr) {
+          mailFailed = true;
+          // 錯誤行：type + 訊息，Email 遮蔽，不記 object 全文
+          writeLog(`寄信失敗 ${maskEmail(toEmail)} -> ${mailErr.constructor.name}: ${mailErr.message}`, 'ERROR');
           console.error(`[scheduler] 郵件寄送失敗，但公告已記錄: ${mailErr.message}`);
         }
       } else {
@@ -78,8 +96,19 @@ async function runCheck() {
       }
     }
 
+    // ---- 三段式第三段：任務結果行（找到 N 筆 + 寄信結果 + 耗時）----
+    let resultMsg = `完成，找到 ${newAnnouncements.length} 筆新公告`;
+    if (newAnnouncements.length > 0) {
+      resultMsg += mailed ? '，寄信成功' : (mailFailed ? '，寄信失敗' : '，未寄信');
+    }
+    resultMsg += `，耗時 ${fmtElapsed(startTime)}`;
+    writeLog(resultMsg, 'OK');
+
     return { checked: stocks.length, newAnnouncements: newAnnouncements.length };
   } catch (err) {
+    // ---- 三段式：錯誤行 + 失敗結果行（type + 訊息，不記 object 全文）----
+    writeLog(`檢查失敗 -> ${err.constructor.name}: ${err.message}`, 'ERROR');
+    writeLog(`失敗，耗時 ${fmtElapsed(startTime)}`, 'FAIL');
     console.error('[scheduler] 檢查失敗:', err.message);
     throw err;
   } finally {

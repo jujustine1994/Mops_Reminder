@@ -15,14 +15,24 @@ app.use(express.static(path.join(__dirname, '..', 'public')));
 const systemLogs = [];
 const MAX_LOGS = 100;
 
+// systemLogs 只進記憶體、餵網頁 UI，本身不落檔（落檔由 src/logger.js 三段式負責）。
+// 但仍不可對 object 無差別 JSON.stringify：err / API response 整包可能挾帶 RESEND_API_KEY
+// 或個資，一旦日後有人把這裡接上落檔就會外洩，故在源頭就做安全摘要（導入順序警告）。
+function safeArg(arg) {
+  if (arg instanceof Error) return arg.message;            // Error 只取 message，不 dump stack / 屬性
+  if (arg !== null && typeof arg === 'object') {
+    // 不整包 stringify，截斷成短摘要，避免把 response/payload 全文帶進來
+    const s = JSON.stringify(arg);
+    return s.length > 200 ? s.slice(0, 200) + '…(截斷)' : s;
+  }
+  return String(arg);
+}
+
 function addLog(type, args) {
-  const msg = args.map(arg => 
-    typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
-  ).join(' ');
-  
+  const msg = args.map(safeArg).join(' ');
   const timestamp = new Date().toLocaleTimeString('zh-TW', { hour12: false });
-  systemLogs.push(`[${timestamp}] ${msg}`);
-  
+  // 用上 type，讓 UI 能區分 INFO / ERROR（原本 type 收了卻沒用）
+  systemLogs.push(`[${timestamp}] [${type}] ${msg}`);
   if (systemLogs.length > MAX_LOGS) systemLogs.shift();
 }
 

@@ -211,7 +211,9 @@ function showCTHBanner() {
 }
 
 const PORT = process.env.PORT || 7853;
-app.listen(PORT, () => {
+// 綁 127.0.0.1：不給 host 的話 Express 預設綁 0.0.0.0，同網段任何人都連得到。
+// 本服務所有 API 都沒有驗證（POST /api/config 可直接改掉通知信箱），只該讓本機用。
+app.listen(PORT, '127.0.0.1', () => {
   showCTHBanner();
   const url = `http://localhost:${PORT}`;
   console.log(`台股公告雷達 啟動於 ${url}`);

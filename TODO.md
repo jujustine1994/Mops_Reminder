@@ -1,5 +1,8 @@
 # TODO
 
+## 文件維護
+- [ ] 校正專案 MD（依新模板：ARCHITECTURE 補現狀，CHANGELOG 拿掉現狀段）
+
 ## 1. 初始設定 (Resend)
 - [x] 申請 Resend API Key
 - [x] 填入 .env 的 `RESEND_API_KEY`

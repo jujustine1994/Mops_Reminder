@@ -13,12 +13,11 @@
 
 ---
 
-### MOPS 域名 redirect 問題
-- 問題：`mopsov.twse.com.tw` 回傳 `ERR_EMPTY_RESPONSE`（域名不通）
-- 問題：`mops.twse.com.tw` 會 redirect，直接硬編 AJAX URL 會打到錯誤位置
-- 原因：MOPS 有不定期域名調整，靜態寫死 URL 容易失效
-- 解法：先用 `page.goto()` 前往首頁，再讀 `page.url()` 取得實際域名（baseOrigin），動態拼出 AJAX endpoint
-- 注意：redirect 後的 AJAX URL 是否正確，仍需實際測試確認
+### 兩套 MOPS 流程不可混用
+- 現狀：排程通知仍由 `crawler.js` 操作 `mopsov.twse.com.tw` 舊版歷史頁；網頁公告詳情由 `mops-details.js` 查 `mops.twse.com.tw/mops/api/` 新版 API。
+- 新版列表 `POST t05st01` 回傳每筆 `apiName` 與 `parameters`；詳情使用這組原始參數 `POST t05st01_detail`。市場別與序號不可從股票代號或標題自行猜測。
+- 新版 API 屬網站內部介面，可能隨 MOPS 改版；改動後應用已知股票與日期驗證「列表 → 詳情」，並用獨立測試 DB，不要觸發寄信。
+- 列表回應 `code=406, message=查無相符資料` 代表零筆；其他異常不可當成零筆吞掉。
 
 ---
 
@@ -31,21 +30,29 @@
 ---
 
 ### MOPS 公告無固定直接連結
-- 問題：無法對單筆公告建立可點擊的超連結
-- 原因：MOPS 使用 POST form 導航，個別公告需要 `seq_no` 參數，而 `seq_no` 只有爬取列表當下才能取得；`ajax_t05sr01` 是 AJAX 端點，非可直接瀏覽的頁面
-- 現狀：crawler.js 第 228–234 行有解析 `onclick` 取 `seq_no` 的雛形，但尚未驗證正確性
-- 解法（暫緩）：等爬蟲主功能穩定後，驗證 `onclick` 解析是否正確，再評估是否能組成可用 URL
-- 前端處理：已在通知歷史區塊加警示 banner 告知使用者此限制
-- 禁止：不要把 `ajax_t05sr01` 當成可直接在瀏覽器開啟的連結 URL
+- 問題：舊爬蟲產生的 `ajax_t05sr01` 是 AJAX 端點，不是能直接放入 Email 的公告網頁網址。
+- 現狀：網頁通知歷史已改為本機詳情視窗；首次開啟舊紀錄時查 MOPS 並快取到 `announcement_details`。Email 仍使用舊連結，待下一階段處理。
+- 禁止：不要把 `ajax_t05sr01` 當成瀏覽器連結，也不要把 `localhost` 連結寄給需要在其他裝置開啟的使用者。
 
 ---
 
 ### 爬蟲跑完但 0 筆公告
 - 問題：`fetchAnnouncements()` 正常執行但回傳空陣列，確認當天有公告卻抓不到
-- 可能原因 1：MOPS 回傳欄位結構異動，`row0~row4` 索引對不上
-- 可能原因 2：AJAX POST 參數（`co_id`、日期格式）傳錯
-- 可能原因 3：Browser 沒帶 session/cookie，MOPS 擋掉請求
-- 解法：在 `page.evaluate` 裡加 `console.log` 印出實際 response，對照 MOPS 網頁手動查詢結果比較欄位
+- 可能原因：舊版頁面的輸入欄位、查詢按鈕或表格欄序變更；或查詢月份、民國日期解析錯誤。
+- 先用手動查詢與 `src/fetch-announcement-details.js` 的新版 API 結果對照，再定位是舊爬蟲頁面操作還是日期過濾問題。
+- `fetchAnnouncements()` 重試耗盡會回傳空陣列；不能只靠「零筆」判斷市場真的沒有公告。
+
+---
+
+### 分類啟用狀態不能用 REPLACE 初始化
+- `announcement_types` 的 `enabled` 是使用者設定。`INSERT OR REPLACE` 更新標籤會刪除舊列並以預設 `enabled=1` 重建。
+- 只更新標籤時使用 `ON CONFLICT(id) DO UPDATE SET label=excluded.label`，保留啟用狀態。
+
+---
+
+### 寄信失敗後的通知歷史
+- 目前 `scheduler.js` 會先寫入 `history`，再呼叫 Resend；寄信失敗時紀錄仍會保留，下次掃描因防重複不會重寄。
+- 修改寄信流程前須先決定「已發現」與「已寄送」的狀態如何區分，避免誤把已記錄視為已寄達。
 
 ---
 
@@ -111,4 +118,5 @@
 ### Gmail SMTP 已棄用，改用 Resend API
 - 問題：早期版本用 Nodemailer + Gmail SMTP，需要「低安全性應用程式存取」或 App Password，設定麻煩且 Google 有封鎖風險
 - 解法：改用 Resend API（`resend` 套件），只需在 `.env` 設定 `RESEND_API_KEY` 與 `EMAIL_FROM`
+- `nodemailer` 已從依賴移除；勿在新功能中重新加入 SMTP 寄信。
 - 禁止：不要退回 Nodemailer + Gmail SMTP 方案

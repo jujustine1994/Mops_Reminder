@@ -1,34 +1,10 @@
 # TODO
 
-## 文件維護
-- [ ] 校正專案 MD（依新模板：ARCHITECTURE 補現狀，CHANGELOG 拿掉現狀段）
+> 只列尚未完成的工作；已完成功能與修改原因見 `ARCHITECTURE.md`、`CHANGELOG.md`。
 
-## 1. 初始設定 (Resend)
-- [x] 申請 Resend API Key
-- [x] 填入 .env 的 `RESEND_API_KEY`
-- [x] 執行網頁上的「測試寄信」，確認收件箱有收到
-
-## 2. 本機環境優化
-- [x] **自動偵測 Chrome 路徑**：目前已支援 Windows/macOS/Linux 多路徑自動掃描。
-- [x] **DB 自動初始化**：程式啟動時會自動檢查並建立 `data/` 資料夾。
-- [x] **網路重試機制**：已實作 3 次自動重試與指數退避邏輯。
-- [x] **環境檢查腳本**：建立 `npm run check` 檢查 API Key 與 Chrome 是否到位。
-- [x] **股票名稱自動抓取**：新增股票時自動同步 mopsov 公司中文名稱。
-
-## 3. 功能擴充
-- [x] **UI 優化與教學引導**：
-  - [x] 實作「Resend 設定教學」彈窗。
-  - [x] 03 設定區塊兩行式佈局優化。
-  - [x] 介面精簡化（縮減 Header、移除歷史記錄超連結）。
-  - [x] 品牌視覺強化（Logo 加大、新增 Created by CTH）。
-- [ ] **精準公告直接連結** (暫緩，等爬蟲穩定後再評估)：
-  - MOPS 使用 POST form 導航，個別公告無固定 GET URL
-  - 需要 `seq_no` 參數，只有爬取列表時才能取得
-  - crawler.js 第 228–234 行已有雛形（解析 `onclick`），但尚未驗證
-  - 即使拿到 seq_no，`ajax_t05sr01` 是 AJAX 端點，不是可直接開啟的頁面
-  - 目前前端已加警示 banner 告知使用者此限制
-- [ ] LINE Notify 整合 (選填，比 Email 更方便)
-
-
-## 4. 發布與打包
-- [x] **應用程式打包**：建立 `台股公告監控雷達.bat` 並加入自動開網頁邏輯。
+1. **新公告預先儲存詳情**：目前排程只寫通知歷史，首次點主旨仍需連線 MOPS。評估在掃描時安全地填入 `announcement_details`，並控制查詢頻率與失敗重試，讓網頁首次開啟也能本機讀取。
+2. **Email 使用公告詳情**：決定在信內直接放完整「說明」，或提供可從外部開啟的詳情頁；移除舊 `ajax_t05sr01` 連結，處理 HTML 跳脫與長內容排版，並以不寄真信的方式驗證。`localhost` 網址不能供其他裝置開啟。
+3. **寄送狀態與重試**：目前 `scheduler.js` 先寫 `history` 再寄信，寄送失敗會被防重複機制視為已處理。設計「已發現／已寄達」狀態後再修改，避免漏寄或重寄。
+4. **統一公告來源**：評估讓排程掃描改用新版 MOPS API，減少舊 Puppeteer 列表與新版詳情 API 並存；切換前需驗證上市、上櫃、公開發行、跨月、分類與去重行為。
+5. **文件位置**：目前 `ARCHITECTURE.md`、`CHANGELOG.md`、`PITFALLS.md`、`TODO.md` 仍在專案根目錄。若依新模板搬至 `docs/`，先列搬移清單並更新 README 與程式內路徑引用。
+6. **其他通知管道（選做）**：若仍需要 LINE 通知，評估 LINE Messaging API。原待辦的 LINE Notify 已於 2025-03-31 結束服務，不能再作為實作目標；見 [LINE 官方公告](https://developers.line.biz/en/news/2025/04/01/line-notify/)。

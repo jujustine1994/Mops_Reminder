@@ -97,6 +97,8 @@
   .history-code { font-family: var(--mono); color: var(--accent); font-weight: 700; width: 50px; flex-shrink: 0; }
   .history-type { font-size: 13px; padding: 3px 10px; background: rgba(59,130,246,0.12); border: 1px solid rgba(59,130,246,0.25); border-radius: 10px; color: var(--accent2); white-space: nowrap; flex-shrink: 0; }
   .history-title { flex: 1; color: #e2e8f0; font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .history-title button { color: inherit; background: none; border: 0; padding: 0; font: inherit; text-align: left; cursor: pointer; }
+  .history-title button:hover { color: var(--accent); text-decoration: underline; }
   .history-time { font-family: var(--mono); font-size: 13px; color: var(--text2); white-space: nowrap; }
   .toast { position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%) translateY(80px); background: var(--accent); color: #0a0e1a; padding: 12px 24px; border-radius: 10px; font-family: var(--mono); font-size: 13px; font-weight: 700; transition: transform 0.3s ease; z-index: 999; box-shadow: 0 8px 30px rgba(0,212,170,0.4); }
   .toast.show { transform: translateX(-50%) translateY(0); }
@@ -119,6 +121,7 @@
   .code-block { background: #000; padding: 12px; border-radius: 8px; font-family: var(--mono); font-size: 13px; color: #e2e8f0; border: 1px solid var(--border); margin: 8px 0; }
   .close-btn { background: none; border: none; color: var(--text3); font-size: 24px; cursor: pointer; }
   .close-btn:hover { color: var(--danger); }
+  .announcement-detail-text { white-space: pre-wrap; overflow-wrap: anywhere; font-family: var(--sans); font-size: 14px; line-height: 1.8; color: var(--text); }
 </style>
 </head>
 <body>
@@ -240,8 +243,8 @@
         <span style="font-size:11px; color:var(--text2); font-weight:400; margin-left:8px;">（最多顯示 100 筆）</span>
         <button class="btn btn-ghost" onclick="clearHistory()" style="margin-left:auto; padding: 4px 10px; font-size: 11px;">🧹 清除紀錄</button>
       </div>
-      <div style="margin-bottom:12px; padding:10px 14px; background:rgba(239,68,68,0.08); border-left:3px solid var(--danger); border-radius:6px; font-size:13px; color:var(--text2);">
-        ⚠️ <strong style="color:var(--danger);">注意：</strong>因技術問題，目前超連結無法連結回原始公告。
+      <div style="margin-bottom:12px; padding:10px 14px; background:rgba(0,212,170,0.08); border-left:3px solid var(--accent); border-radius:6px; font-size:13px; color:var(--text2);">
+        點公告主旨可在本頁查看完整說明。首次開啟舊紀錄時，可能需等候 MOPS 查詢。
       </div>
       <div class="history-list" id="historyList"><div class="empty-hint" style="padding:8px 0">尚無通知記錄</div></div>
     </div>
@@ -301,6 +304,21 @@
         </thead>
         <tbody id="typesTableBody"></tbody>
       </table>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="announcementModal" onclick="if(event.target===this) closeAnnouncementDetail()">
+  <div class="modal-card" style="max-width:760px;">
+    <div class="modal-header">
+      <h3 style="font-size:18px;">📄 公告詳細內容</h3>
+      <button class="close-btn" onclick="closeAnnouncementDetail()" aria-label="關閉">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div id="announcementDetailTitle" style="font-weight:700; margin-bottom:8px;"></div>
+      <div id="announcementDetailMeta" style="font-size:13px; color:var(--text2); margin-bottom:16px;"></div>
+      <div id="announcementDetailFields" style="white-space:pre-wrap; font-size:13px; color:var(--text2); margin-bottom:16px;"></div>
+      <div id="announcementDetailText" class="announcement-detail-text">讀取中；若尚未儲存，首次開啟需向 MOPS 查詢...</div>
     </div>
   </div>
 </div>
@@ -559,7 +577,7 @@ function renderHistory() {
       }
       return h.notified_at ? h.notified_at.slice(5, 16) : '';
     })();
-    const title   = h.link ? `<a href="${h.link}" target="_blank" style="color:#e2e8f0;text-decoration:none">${h.title}</a>` : h.title;
+    const title = `<button type="button" data-detail-id="${Number(h.id)}">${escapeHtml(h.title)}</button>`;
     
     let typeLabels = '';
     try {
@@ -586,12 +604,47 @@ function renderHistory() {
     }
 
     return `<div class="history-item" style="flex-wrap:wrap">
-      <span class="history-code">${h.stock_code}</span>${h.stock_name ? `<span style="color:var(--text2); font-size:20px; margin-right:8px; flex-shrink:0">${h.stock_name}</span>` : ''}
+      <span class="history-code">${escapeHtml(h.stock_code)}</span>${h.stock_name ? `<span style="color:var(--text2); font-size:20px; margin-right:8px; flex-shrink:0">${escapeHtml(h.stock_name)}</span>` : ''}
       <div style="display:flex; flex-wrap:wrap; gap:4px; margin-right:8px">${typeLabels}</div>
       <span class="history-title" style="flex-basis:100%; margin-top:5px; order:10">${title}</span>
       <span class="history-time" style="margin-left:auto">${timeStr}</span>
     </div>`;
   }).join('');
+}
+
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
+}
+
+let activeDetailId = null;
+async function openAnnouncementDetail(id) {
+  activeDetailId = id;
+  document.getElementById('announcementModal').classList.add('active');
+  document.getElementById('announcementDetailTitle').textContent = '';
+  document.getElementById('announcementDetailMeta').textContent = '';
+  document.getElementById('announcementDetailFields').textContent = '';
+  document.getElementById('announcementDetailText').textContent = '讀取中；若尚未儲存，首次開啟需向 MOPS 查詢...';
+  try {
+    const res = await fetch(`/api/history/${id}/detail`);
+    const detail = await res.json();
+    if (!res.ok) throw new Error(detail.error || '公告詳情讀取失敗');
+    if (activeDetailId !== id) return;
+    document.getElementById('announcementDetailTitle').textContent = detail.title;
+    document.getElementById('announcementDetailMeta').textContent = `${detail.stockCode} ${detail.companyName}｜${detail.annDate} ${detail.annTime}`;
+    const extraFields = ['符合條款', '事實發生日', '發言人', '發言人職稱', '發言人電話'];
+    document.getElementById('announcementDetailFields').textContent = extraFields
+      .filter(key => detail.fields?.[key])
+      .map(key => `${key}：${detail.fields[key]}`)
+      .join('\n');
+    document.getElementById('announcementDetailText').textContent = detail.detailText;
+  } catch (error) {
+    if (activeDetailId === id) document.getElementById('announcementDetailText').textContent = `無法讀取公告：${error.message}`;
+  }
+}
+
+function closeAnnouncementDetail() {
+  activeDetailId = null;
+  document.getElementById('announcementModal').classList.remove('active');
 }
 
 function updateStats() {
@@ -611,6 +664,10 @@ function showToast(msg) {
 
 document.addEventListener('DOMContentLoaded', () => {
   loadConfig(); loadHistory(); fetchLogs(); loadCategories(); setInterval(fetchLogs, 3000);
+  document.getElementById('historyList').addEventListener('click', event => {
+    const button = event.target.closest('[data-detail-id]');
+    if (button) openAnnouncementDetail(Number(button.dataset.detailId));
+  });
   document.getElementById('stockCode').addEventListener('keydown', e => { if (e.key === 'Enter') addStock(); });
   document.getElementById('scheduleInput').addEventListener('keydown', e => { if (e.key === 'Enter') addSchedule(); });
 });

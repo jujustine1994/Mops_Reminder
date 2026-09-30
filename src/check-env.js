@@ -1,3 +1,4 @@
+// 檢查寄信設定、Chrome 與資料夾是否可供現有排程流程使用。
 const fs = require('fs');
 const path = require('path');
 require('dotenv').config();
@@ -6,40 +7,22 @@ console.log('🔍 正在檢查開發環境...');
 
 let hasError = false;
 
-// 1. 檢查 .env
+// 1. 檢查 .env；只看本機公告時寄信設定可留空。
 if (!fs.existsSync('.env')) {
-  console.log('❌ 找不到 .env 檔案。請參考 .env.example 建立。');
-  hasError = true;
+  console.log('ℹ️ 找不到 .env；本機查看可用，若要寄信請參考 .env.example 建立。');
 } else {
   console.log('✅ .env 檔案存在');
-  
-  // 檢查 API Key
-  const apiKey = process.env.RESEND_API_KEY;
-  if (!apiKey || apiKey.startsWith('re_你的')) {
-    console.log('❌ RESEND_API_KEY 未設定或仍為預設值。');
-    hasError = true;
-  } else {
-    console.log('✅ RESEND_API_KEY 已設定');
-  }
 }
 
-// 2. 檢查 Chrome (調用 crawler 裡的邏輯)
-const { fetchAnnouncements } = require('./crawler'); // 雖然這會報錯，我們直接模擬偵測
-function findChromePath() {
-  const paths = {
-    win32: [
-      'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
-      'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
-      path.join(process.env.LOCALAPPDATA || '', 'Google\\Chrome\\Application\\chrome.exe'),
-    ],
-    darwin: ['/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'],
-    linux: ['/usr/bin/google-chrome', '/usr/bin/chromium-browser']
-  };
-  const platformPaths = paths[process.platform] || [];
-  for (const p of platformPaths) { if (fs.existsSync(p)) return p; }
-  return process.env.CHROME_PATH || null;
+const { hasResendKey } = require('./mailer');
+if (!hasResendKey()) {
+  console.log('ℹ️ RESEND_API_KEY 未設定；本機查看可用，寄信功能暫不可用。');
+} else {
+  console.log('✅ RESEND_API_KEY 已設定');
 }
 
+// 2. 檢查 Chrome；沿用爬蟲的同一套偵測規則，避免兩邊結果不一致。
+const { findChromePath } = require('./crawler');
 const chromePath = findChromePath();
 if (!chromePath || !fs.existsSync(chromePath)) {
   console.log('❌ 找不到 Chrome 瀏覽器。請確保已安裝 Chrome 或設定 CHROME_PATH。');
@@ -61,6 +44,6 @@ if (hasError) {
   console.log('❌ 環境檢查失敗，請修正以上問題。');
   process.exit(1);
 } else {
-  console.log('🚀 環境檢查成功！您可以執行 npm start 開始工作。');
+  console.log('🚀 環境檢查成功！您可以執行 pnpm start 啟動。');
   process.exit(0);
 }

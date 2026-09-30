@@ -1,3 +1,4 @@
+// 管理個人設定、通知歷史與獨立的股票名稱對照資料庫。
 const Database = require('better-sqlite3');
 const path = require('path');
 const fs = require('fs');
@@ -56,11 +57,14 @@ const defaultTypes = [
   { id: 'asset_disposal', label: '處分資產' },
 ];
 
-// 清除舊的類型並新增/更新類型
+// 清除舊類型；更新標籤時保留使用者已儲存的 enabled 狀態。
 ['other', 'capital', 'buyback'].forEach(id => {
   db.prepare('DELETE FROM announcement_types WHERE id = ?').run(id);
 });
-const insertType = db.prepare(`INSERT OR REPLACE INTO announcement_types (id, label) VALUES (?, ?)`);
+const insertType = db.prepare(`
+  INSERT INTO announcement_types (id, label) VALUES (?, ?)
+  ON CONFLICT(id) DO UPDATE SET label = excluded.label
+`);
 for (const t of defaultTypes) insertType.run(t.id, t.label);
 
 // ---- Config ----
@@ -153,6 +157,10 @@ function getHistory(limit = 100) {
   return db.prepare('SELECT * FROM history ORDER BY ann_date DESC, ann_time DESC LIMIT ?').all(limit);
 }
 
+function getHistoryById(id) {
+  return db.prepare('SELECT * FROM history WHERE id = ?').get(id);
+}
+
 function clearHistory() {
   db.prepare('DELETE FROM history').run();
 }
@@ -167,4 +175,4 @@ function setSchedules(times) {
   setConfig('schedules', JSON.stringify(times));
 }
 
-module.exports = { getConfig, setConfig, getStocks, findStockName, upsertStockRef, addStock, removeStock, getTypes, setTypeEnabled, isNotified, addHistory, getHistory, clearHistory, getSchedules, setSchedules };
+module.exports = { getConfig, setConfig, getStocks, findStockName, upsertStockRef, addStock, removeStock, getTypes, setTypeEnabled, isNotified, addHistory, getHistory, getHistoryById, clearHistory, getSchedules, setSchedules };

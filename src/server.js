@@ -1,3 +1,4 @@
+// 本機 Express 入口：提供設定、通知歷史、公告詳情與手動掃描 API。
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
@@ -5,6 +6,7 @@ const path = require('path');
 const db = require('./db');
 const { runCheck, startScheduler, applySchedules } = require('./scheduler');
 const { sendTestEmail } = require('./mailer');
+const { getHistoryDetail } = require('./history-detail');
 
 const app = express();
 app.use(cors());
@@ -158,6 +160,19 @@ app.get('/api/categories', (req, res) => {
 app.get('/api/history', (req, res) => {
   const limit = parseInt(req.query.limit || '100');
   res.json(db.getHistory(limit));
+});
+
+app.get('/api/history/:id/detail', async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isSafeInteger(id) || id < 1) return res.status(400).json({ error: '無效的公告編號' });
+  const history = db.getHistoryById(id);
+  if (!history) return res.status(404).json({ error: '找不到這筆通知紀錄' });
+  try {
+    res.json(await getHistoryDetail(history));
+  } catch (error) {
+    console.error(`[server] 讀取公告詳情失敗 #${id}: ${error.message}`);
+    res.status(error.status || 502).json({ error: error.message });
+  }
 });
 
 app.delete('/api/history', (req, res) => {

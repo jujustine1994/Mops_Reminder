@@ -1,6 +1,11 @@
 node_modules/
-data/mops.db
+data/*.db
+!data/stock_ref.db
 .env
+.env.local
+*.pem
+*.key
+*.p12
 logs/
 *.log
 cache/

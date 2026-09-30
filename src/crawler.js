@@ -1,9 +1,10 @@
+// 舊版 MOPS 歷史頁爬蟲與公告分類規則；排程通知目前仍使用此模組。
 const fs = require('fs');
 const path = require('path');
 const puppeteer = require('puppeteer-core');
 const cheerio = require('cheerio');
 
-// 自動偵測 Chrome 路徑
+/** 排程爬蟲與環境檢查共用的 Chrome 路徑偵測。 */
 function findChromePath() {
   if (process.env.CHROME_PATH && fs.existsSync(process.env.CHROME_PATH)) {
     return process.env.CHROME_PATH;
@@ -224,14 +225,15 @@ async function _fetchAnnouncementsInternal(stockCode, fromDate, toDate) {
             const cleanDate = `${y}${m}${d}`;
 
             if (cleanDate >= filterFromRoc && cleanDate <= filterToRoc) {
-              // 核心修復：抓取直接連結
+              // 舊版郵件仍使用這個欄位；它不是可直接開啟的公告網址。
+              // 網頁詳情請走 /api/history/:id/detail；郵件連結留待下一階段移除。
               // mopsov 的 onclick 通常長這樣: viewMainBoard('3017','1150306','1','t05st01',...)
               const onclick = $(cells[4]).find('input[type="button"]').attr('onclick') || '';
               const p = onclick.match(/'(.*?)'/g)?.map(s => s.replace(/'/g, '')) || [];
 
               let directLink = 'https://mops.twse.com.tw/mops/web/t05sr01';
               if (p.length >= 3) {
-                // 拼接直接讀取公告內容的 URL
+                // 既有郵件流程仍會把它當連結使用；已知無法直接瀏覽，待郵件階段修正。
                 directLink = `https://mops.twse.com.tw/mops/web/ajax_t05sr01?step=1&TYPEK=all&co_id=${p[0]}&year=${p[1].substring(0,3)}&month=${p[1].substring(3,5)}&day=${p[1].substring(5,7)}&seq_no=${p[2]}`;
               }
 
@@ -327,4 +329,4 @@ async function _fetchStockNameInternal(stockCode) {
   }
 }
 
-module.exports = { fetchAnnouncements, fetchStockName, classifyType, matchesEnabledTypes, closeBrowser, CATEGORY_RULES };
+module.exports = { fetchAnnouncements, fetchStockName, classifyType, matchesEnabledTypes, closeBrowser, findChromePath, CATEGORY_RULES };

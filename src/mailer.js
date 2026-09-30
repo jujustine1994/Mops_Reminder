@@ -3,8 +3,20 @@
 const { Resend } = require('resend');
 require('dotenv').config();
 
-const resend = new Resend(process.env.RESEND_API_KEY);
 const EMAIL_FROM = process.env.EMAIL_FROM || 'onboarding@resend.dev';
+
+// 本機網頁與公告詳情不需要寄信；只在真正發送時驗證 Key 並建立 client。
+function hasResendKey() {
+  const key = process.env.RESEND_API_KEY;
+  return !!key && !/^re_x{5,}$/i.test(key) && !key.startsWith('re_你的');
+}
+
+function getResendClient() {
+  if (!hasResendKey()) {
+    throw new Error('尚未設定有效的 RESEND_API_KEY');
+  }
+  return new Resend(process.env.RESEND_API_KEY);
+}
 
 /**
  * 寄送新公告通知
@@ -48,7 +60,7 @@ async function sendNotification(toEmail, announcements) {
   `;
 
   try {
-    const { data, error } = await resend.emails.send({
+    const { data, error } = await getResendClient().emails.send({
       from: EMAIL_FROM,
       to: toEmail,
       subject: subject,
@@ -70,7 +82,7 @@ async function sendNotification(toEmail, announcements) {
  */
 async function sendTestEmail(toEmail) {
   try {
-    const { data, error } = await resend.emails.send({
+    const { data, error } = await getResendClient().emails.send({
       from: EMAIL_FROM,
       to: toEmail,
       subject: '📡 台股公告雷達 - 測試信件',
@@ -91,4 +103,4 @@ async function sendTestEmail(toEmail) {
   }
 }
 
-module.exports = { sendNotification, sendTestEmail };
+module.exports = { sendNotification, sendTestEmail, hasResendKey };

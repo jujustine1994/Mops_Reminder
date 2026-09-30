@@ -86,6 +86,8 @@ node src/fetch-announcement-details.js --stock 2330 --from 2026-09-01 --to 2026-
 ```
 對應結果不唯一時回傳錯誤，避免顯示錯誤公告；此流程不寄信。每筆公告首次快取未命中時，需依序查 MOPS 列表與詳情兩個 API，速度取決於對方與網路；成功保存後再次開啟直接讀 SQLite。排程掃描只寫 `history`，不會自動填入 `announcement_details`；手動擷取可提前填入快取。
 
+瀏覽器只呼叫本機 `/api/history/:id/detail`，不會跳轉到 MOPS 公告網址。後端先以公司和日期 POST 查列表，再使用列表回傳的市場別、公司代號、日期及序號 POST 查單筆詳情；這些識別參數不能只靠舊版連結猜出。
+
 ### 排程更新流程（即時生效，不需重啟）
 ```
 前端儲存設定 → POST /api/config { schedules: [...] }
@@ -111,7 +113,8 @@ GET    /api/categories          取得 CATEGORY_RULES（前端說明彈窗用）
 
 GET    /api/history             取歷史通知記錄（?limit=N，預設 100）
 GET    /api/history/:id/detail  取單筆公告詳情（本機優先，必要時查 MOPS）
-DELETE /api/history             清空歷史記錄
+DELETE /api/history             清空歷史記錄與公告詳情快取（同一 transaction）
+DELETE /api/history?preserveDetails=1  只清歷史記錄，供「立即檢查」重新掃描
 
 POST   /api/run-now             立即執行一次完整掃描
 POST   /api/test-email          寄測試信到指定 Email
@@ -131,6 +134,8 @@ announcement_types  → 公告類型與啟用狀態（id, label, enabled）
 history             → 已通知記錄（防重複）：(stock_code, title, ann_date) 唯一索引
 announcement_details → 擷取的完整公告內容；與通知歷史分開，source_id 為來源唯一鍵
 ```
+
+公告內文快取只存於既有 `data/mops.db` 的 `announcement_details` 表，不建立每筆公告的文字檔或額外快取資料夾。網頁「清除紀錄與快取」會在同一 SQLite transaction 清空 `history` 與 `announcement_details`，保留設定和股票清單；「立即檢查」只清 `history`。
 
 `data/stock_ref.db`（公開對照表，隨版本發布）：`stock_ref(code, name)`。新股票名稱會自動補入此檔。
 

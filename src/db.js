@@ -165,6 +165,15 @@ function clearHistory() {
   db.prepare('DELETE FROM history').run();
 }
 
+// 使用同一個 SQLite transaction 清除歷史與詳情，避免只刪掉其中一種資料。
+function clearHistoryAndDetails() {
+  db.transaction(() => {
+    db.prepare('DELETE FROM history').run();
+    const hasDetailsTable = db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'announcement_details'").get();
+    if (hasDetailsTable) db.prepare('DELETE FROM announcement_details').run();
+  })();
+}
+
 // ---- Schedules ----
 function getSchedules() {
   const raw = getConfig('schedules', '[]');
@@ -175,4 +184,4 @@ function setSchedules(times) {
   setConfig('schedules', JSON.stringify(times));
 }
 
-module.exports = { getConfig, setConfig, getStocks, findStockName, upsertStockRef, addStock, removeStock, getTypes, setTypeEnabled, isNotified, addHistory, getHistory, getHistoryById, clearHistory, getSchedules, setSchedules };
+module.exports = { getConfig, setConfig, getStocks, findStockName, upsertStockRef, addStock, removeStock, getTypes, setTypeEnabled, isNotified, addHistory, getHistory, getHistoryById, clearHistory, clearHistoryAndDetails, getSchedules, setSchedules };

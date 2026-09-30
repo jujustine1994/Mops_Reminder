@@ -176,8 +176,14 @@ app.get('/api/history/:id/detail', async (req, res) => {
 });
 
 app.delete('/api/history', (req, res) => {
-  db.clearHistory();
-  res.json({ ok: true });
+  try {
+    if (req.query.preserveDetails === '1') db.clearHistory();
+    else db.clearHistoryAndDetails();
+    res.json({ ok: true });
+  } catch (error) {
+    console.error(`[server] 清除通知紀錄失敗: ${error.message}`);
+    res.status(500).json({ error: '清除通知紀錄失敗' });
+  }
 });
 
 // ---- 手動觸發 ----

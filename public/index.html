@@ -241,7 +241,7 @@
       <div class="card-title">
         🕐 最近通知記錄
         <span style="font-size:11px; color:var(--text2); font-weight:400; margin-left:8px;">（最多顯示 100 筆）</span>
-        <button class="btn btn-ghost" onclick="clearHistory()" style="margin-left:auto; padding: 4px 10px; font-size: 11px;">🧹 清除紀錄</button>
+        <button class="btn btn-ghost" onclick="clearHistory()" style="margin-left:auto; padding: 4px 10px; font-size: 11px;">🧹 清除紀錄與快取</button>
       </div>
       <div style="margin-bottom:12px; padding:10px 14px; background:rgba(0,212,170,0.08); border-left:3px solid var(--accent); border-radius:6px; font-size:13px; color:var(--text2);">
         點公告主旨可在本頁查看完整說明。首次開啟舊紀錄時，可能需等候 MOPS 查詢。
@@ -400,17 +400,18 @@ async function runNow() {
     }
   }
 
-  if (!confirm('💡 按下「立即檢查」將會先清除目前的通知紀錄（等同於下方的清除紀錄按鈕），以確保抓取到最新的完整公告，確定要開始嗎？')) return;
+  if (!confirm('💡 按下「立即檢查」將先清除目前的通知紀錄並重新掃描；已儲存的公告內文會保留。確定要開始嗎？')) return;
 
   // 1. 先清除歷史紀錄
   try {
-    await fetch('/api/history', { method: 'DELETE' });
+    const clearRes = await fetch('/api/history?preserveDetails=1', { method: 'DELETE' });
+    if (!clearRes.ok) throw new Error('清除歷史紀錄失敗');
     // 立即清空前端資料並更新畫面
     history = [];
     renderHistory();
     updateStats();
     showToast('🧹 已自動清除舊紀錄');
-  } catch(e) { console.error('清除歷史紀錄失敗', e); }
+  } catch(e) { showToast('⚠️ 清除歷史紀錄失敗'); return; }
 
   // 2. 開始立即檢查
   const btn = document.getElementById('runBtn');
@@ -436,14 +437,15 @@ async function loadHistory() {
 }
 
 async function clearHistory() {
-  if (!confirm('確定要清除所有通知紀錄嗎？這將清空資料庫中的歷史資料。')) return;
+  if (!confirm('確定要清除所有通知紀錄與公告內文快取嗎？下次開啟公告需重新向 MOPS 查詢。')) return;
   try {
     const res = await fetch('/api/history', { method: 'DELETE' });
     const data = await res.json();
     if (data.ok) {
-      showToast('🧹 已清空歷史紀錄');
+      closeAnnouncementDetail();
+      showToast('🧹 已清空歷史紀錄與內文快取');
       await loadHistory();
-    }
+    } else showToast('⚠️ 清除失敗');
   } catch(e) { showToast('⚠️ 清除失敗'); }
 }
 
